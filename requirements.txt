@@ -1,0 +1,8 @@
+dash==2.18.1
+plotly
+pandas
+psycopg2-binary
+alembic
+openai
+python-dotenv
+pytest

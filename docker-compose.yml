@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: vega_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vega
+      POSTGRES_PASSWORD: vega
+      POSTGRES_DB: katalyzer_vega
+    ports:
+      - "5432:5432"
+    volumes:
+      - vega_pgdata:/var/lib/postgresql/data
+      - ./scripts/init_schema.sql:/docker-entrypoint-initdb.d/00_init_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vega -d katalyzer_vega"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: vega_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://vega:vega@postgres:5432/katalyzer_vega
+    ports:
+      - "8050:8050"
+    volumes:
+      - .:/app
+
+volumes:
+  vega_pgdata:
