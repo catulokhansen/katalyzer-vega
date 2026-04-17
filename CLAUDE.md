@@ -402,6 +402,6 @@ Todos os componentes do dashboard têm tooltip contextual com icone (i) ao lado 
 3. Reiniciar app — nao ha build step intermediario
 
 **Restricoes obrigatorias:**
-- Nenhum caractere tipografico nos textos: aspas curvas (`"` `"` `'` `'`), travessao (`--`), meia-risca (`-`)
+- Nenhum caractere tipografico nos textos: aspas curvas (U+201C `"`, U+201D `"`, U+2018 `'`, U+2019 `'`), travessao (U+2014 `—`), meia-risca (U+2013 `–`)
 - `como_interpretar` deve ser `list[str]` (nunca `str`)
 - IDs seguem regex `T-\d{2}-\d{2}` — T-01 a T-07 mapeiam para Abas 1 a 7
