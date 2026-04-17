@@ -15,6 +15,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, callback, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta ────────────────────────────────────────────────────────────────────
 DELFT = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -347,14 +349,20 @@ def _kpis_principais(m: dict[str, Any]) -> html.Div:
     pct_morto = m["valor_morto_cents"] / m["valor_bruto_cents"] * 100
     recuperavel_cents = int(m["valor_ativo_cents"] * 0.278)  # ~27,8% baseado no mockup (8.2M/29.5M)
 
-    def _metric(label: str, value: str, sub: str, color: str, sub_class: str = "neutral") -> html.Div:
+    def _metric(label: str, value: str, sub: str, color: str, sub_class: str = "neutral", tip_id: str | None = None) -> html.Div:
         sub_colors = {
             "neg": {"color": "#991B1B"},
             "pos": {"color": "#065F46"},
             "neutral": {"color": "#9CA3AF"},
         }
+        label_row: list = [html.Div(label, style=_LABEL_STYLE)]
+        if tip_id:
+            label_row = [html.Div([
+                html.Div(label, style=_LABEL_STYLE),
+                tooltip(tip_id),
+            ], style={"display": "flex", "alignItems": "center", "gap": "6px"})]
         return html.Div([
-            html.Div(label, style=_LABEL_STYLE),
+            *label_row,
             html.Div(value, style={**_VALUE_STYLE, "color": color}),
             html.Div(sub, style={"fontSize": 11, "marginTop": 4, **sub_colors.get(sub_class, {})}),
         ], style={
@@ -366,9 +374,9 @@ def _kpis_principais(m: dict[str, Any]) -> html.Div:
 
     return html.Div([
         _metric("Carteira bruta",       _fmt_reais(m["valor_bruto_cents"]),
-                f"{_fmt_num(m['total_brutas'])} CDAs", DELFT),
+                f"{_fmt_num(m['total_brutas'])} CDAs", DELFT, tip_id="T-01-01"),
         _metric("Estoque morto",        _fmt_reais(m["valor_morto_cents"]),
-                f"↓ {pct_morto:.1f}% eliminado", RED, "neg"),
+                f"↓ {pct_morto:.1f}% eliminado", RED, "neg", tip_id="T-01-02"),
         _metric("Carteira ativa",       _fmt_reais(m["valor_ativo_cents"]),
                 f"↑ {_fmt_num(m['total_ativas'])} CDAs", GREEN, "pos"),
         _metric("Recuperável estimado", _fmt_reais(recuperavel_cents),
@@ -607,7 +615,10 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             html.Div([
                 html.Div([
                     html.Div([
-                        html.Div("Funil de higienização", style={"fontSize": 13, "fontWeight": 600}),
+                        html.Div([
+                            html.Div("Funil de higienização", style={"fontSize": 13, "fontWeight": 600}),
+                            tooltip("T-01-06"),
+                        ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                         html.Div("Estoque morto decomposto por causa de eliminação", style={"fontSize": 10, "color": "#9CA3AF"}),
                     ])
                 ], style={"display": "flex", "marginBottom": 12}),

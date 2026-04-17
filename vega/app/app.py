@@ -26,6 +26,7 @@ from vega.app.tabs import (
     tab_historico,
     tab_cenarios,
 )
+from vega.app.components.tooltip import vega_tooltip_css
 
 
 TABS = [
@@ -336,6 +337,27 @@ def _registrar_sidebar_callbacks(app: Dash) -> None:
 
 def create_app() -> Dash:
     app = Dash(__name__, title="Katalyzer Vega", suppress_callback_exceptions=True)
+
+    _tooltip_css = vega_tooltip_css()
+    app.index_string = f"""<!DOCTYPE html>
+<html>
+    <head>
+        {{%metas%}}
+        <title>{{%title%}}</title>
+        {{%favicon%}}
+        {{%css%}}
+        <style>{_tooltip_css}</style>
+    </head>
+    <body>
+        {{%app_entry%}}
+        <footer>
+            {{%config%}}
+            {{%scripts%}}
+            {{%renderer%}}
+        </footer>
+    </body>
+</html>"""
+
     app.layout = _layout()
 
     # Roteamento lazy: carrega conteúdo da aba quando ela é ativada
