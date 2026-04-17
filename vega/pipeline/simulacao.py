@@ -18,6 +18,7 @@ Este módulo NÃO controla a flag — ele apenas gera as curvas.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -37,52 +38,41 @@ class PontoElasticidade:
 def decay_curve(
     valor_alvo_cents: int,
     rate: float,
+    ceiling: float,
     meses: int = 12,
-) -> list[int]:
-    """Gera a curva mensal de recuperação sobre um valor-alvo.
+) -> list[float]:
+    """Gera curva de recuperação cumulativa mensal com teto (ceiling) realista.
 
-    Modelo geométrico: em cada mês, o saldo remanescente é multiplicado
-    por ``rate`` (0 < rate < 1). A recuperação do mês é a diferença entre
-    o saldo anterior e o novo saldo.
+    Modelo exponencial: converge assintoticamente para ceiling * valor_alvo.
+    Benchmarks de DA municipal com plataforma de protesto ativa: 15-40% do
+    valor-alvo em 12 meses (C1.1 — rates realistas).
 
-    rate = 0.38 → agressivo (recupera rápido, cai rápido)
-    rate = 0.55 → moderado
-    rate = 0.90 → conservador (recuperação lenta e persistente)
+    Args:
+        valor_alvo_cents: valor total do escopo do cenário em centavos.
+        rate: velocidade de convergência para o ceiling (típico: 0.04–0.08).
+        ceiling: fração máxima do valor_alvo efetivamente recuperável (0.0–1.0).
+        meses: horizonte de projeção (default 12).
 
-    Retorna lista de length=``meses`` com a recuperação mensal em centavos.
-    Nota: ``rate`` aqui é a fração do saldo que PERMANECE em aberto no mês
-    seguinte — é assim que o decay_rate_* é armazenado em sessoes_analise
-    (rate baixo ⇒ adesão rápida ⇒ cenário agressivo).
+    Retorna lista de valores em R$ (float) acumulados mês a mês.
     """
-    if not 0 < rate < 1:
-        raise ValueError(f"rate deve estar em (0, 1); recebido: {rate}")
     if meses <= 0:
         return []
     if valor_alvo_cents <= 0:
-        return [0] * meses
-
-    curva: list[int] = []
-    saldo = int(valor_alvo_cents)
-    for _ in range(meses):
-        novo_saldo = round(saldo * rate)
-        recuperado_no_mes = saldo - novo_saldo
-        curva.append(recuperado_no_mes)
-        saldo = novo_saldo
-    return curva
+        return [0.0] * meses
+    return [
+        round(valor_alvo_cents * ceiling * (1 - math.exp(-rate * m)) / 100, 2)
+        for m in range(1, meses + 1)
+    ]
 
 
-def calcular_payback(curva: Sequence[int], custo_reais: float) -> Optional[int]:
+def calcular_payback(curva: Sequence[float], custo_reais: float) -> Optional[int]:
     """Retorna o mês (1-based) em que a recuperação acumulada cobre o custo.
 
-    Custo em reais (não centavos) — é o custo operacional do cliente no
-    cenário. Converte internamente para centavos. Retorna None se a
-    curva não cobre o custo no horizonte fornecido.
+    Custo em reais. Curva em R$ cumulativos (output de decay_curve).
+    Retorna None se a curva não cobre o custo no horizonte fornecido.
     """
-    custo_cents = round(float(custo_reais) * 100)
-    acumulado = 0
-    for i, mes in enumerate(curva, start=1):
-        acumulado += int(mes)
-        if acumulado >= custo_cents:
+    for i, val in enumerate(curva, start=1):
+        if val >= custo_reais:
             return i
     return None
 

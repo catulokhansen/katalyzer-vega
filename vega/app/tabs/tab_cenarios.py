@@ -40,10 +40,15 @@ _CARD = {
 _PLOT_FONT   = {"family": "system-ui, -apple-system, sans-serif", "size": 11, "color": "#6B7280"}
 _GRID_COLOR  = "rgba(0,0,0,.05)"
 
-# Taxas de decay por cenário (vide simulacao.py — rate = fração que PERMANECE)
-_RATE_CONS = 0.90  # conservador: recuperação lenta e persistente
-_RATE_MOD  = 0.55  # moderado
-_RATE_AGR  = 0.38  # agressivo: recuperação rápida nos primeiros meses
+# Taxas e tetos de decay por cenário — modelo exponencial com ceiling (C1.1)
+# Benchmarks DA municipal: 15-40% recuperação em 12m com plataforma ativa
+_RATE_CONS = 0.04   # conservador: convergência lenta
+_RATE_MOD  = 0.06   # moderado
+_RATE_AGR  = 0.08   # agressivo: convergência mais rápida
+
+_CEILING_CONS = 0.22   # 22% do valor-alvo é a assíntota conservadora
+_CEILING_MOD  = 0.32   # 32% — moderado
+_CEILING_AGR  = 0.42   # 42% — agressivo
 
 _DEFAULT_ADESAO: dict[str, float] = {"cons": 12.0, "mod": 10.0, "agr": 8.0}
 _DEFAULT_CUSTO:  dict[str, float] = {"cons": 85_000.0, "mod": 137_000.0, "agr": 205_000.0}
@@ -82,30 +87,37 @@ def _plateau_str(pl: int | None) -> str:
 
 # ── Simulação ─────────────────────────────────────────────────────────────────
 
-def _calcular_plateau(curva: list[int]) -> int | None:
-    """Primeiro mês em que a recuperação mensal cai abaixo de 5% do Mês 1."""
+def _calcular_plateau(curva: list[float]) -> int | None:
+    """Primeiro mês em que o incremento mensal cai abaixo de 5% do incremento do Mês 1."""
     if not curva or curva[0] == 0:
         return None
-    threshold = curva[0] * 0.05
+    delta_m1 = curva[0]  # M1: prev=0, então delta = curva[0]
+    threshold = delta_m1 * 0.05
+    prev = 0.0
     for i, v in enumerate(curva, 1):
-        if v < threshold:
+        delta = v - prev
+        if delta < threshold:
             return i
+        prev = v
     return None
 
 
-def _calcular_um(valor_cents: int, adesao_pct: float, custo_reais: float, rate: float) -> dict:
+def _calcular_um(
+    valor_cents: int, adesao_pct: float, custo_reais: float,
+    rate: float, ceiling: float,
+) -> dict:
     valor_efetivo = round(valor_cents * adesao_pct / 100)
-    curva = decay_curve(valor_efetivo, rate, 12)
-    rec_cents = sum(curva)
+    curva = decay_curve(valor_efetivo, rate, ceiling, 12)
+    rec_cents = round(curva[-1] * 100) if curva else 0   # último valor cumulativo → centavos
     roi = round(
         (rec_cents / 100 - custo_reais) / custo_reais * 100, 1
     ) if custo_reais > 0 else 0.0
     return {
-        "curva":           curva,
+        "curva":             curva,
         "recuperacao_cents": rec_cents,
-        "roi":             roi,
-        "payback":         calcular_payback(curva, custo_reais),
-        "plateau":         _calcular_plateau(curva),
+        "roi":               roi,
+        "payback":           calcular_payback(curva, custo_reais),
+        "plateau":           _calcular_plateau(curva),
     }
 
 
@@ -114,13 +126,41 @@ def _calcular_cenarios(base: dict, adesoes: dict, custos: dict) -> dict:
     val_mod  = base["Q1"]["valor_cents"] + base["Q2"]["valor_cents"]
     val_agr  = val_mod + base["Q3"]["valor_cents"]
     return {
-        "cons":     _calcular_um(val_cons, adesoes["cons"], custos["cons"], _RATE_CONS),
-        "mod":      _calcular_um(val_mod,  adesoes["mod"],  custos["mod"],  _RATE_MOD),
-        "agr":      _calcular_um(val_agr,  adesoes["agr"],  custos["agr"],  _RATE_AGR),
+        "cons":     _calcular_um(val_cons, adesoes["cons"], custos["cons"], _RATE_CONS, _CEILING_CONS),
+        "mod":      _calcular_um(val_mod,  adesoes["mod"],  custos["mod"],  _RATE_MOD,  _CEILING_MOD),
+        "agr":      _calcular_um(val_agr,  adesoes["agr"],  custos["agr"],  _RATE_AGR,  _CEILING_AGR),
         "val_cons": val_cons,
         "val_mod":  val_mod,
         "val_agr":  val_agr,
     }
+
+
+# ── Validação de sanidade (C1.2) ──────────────────────────────────────────────
+
+_CENARIO_KEYS   = ("cons", "mod", "agr")
+_CENARIO_LABELS = {"cons": "Conservador", "mod": "Moderado", "agr": "Agressivo"}
+
+
+def _validar_sanidade_cenarios(valor_ativo_cents: int, res: dict) -> dict | None:
+    """Retorna dict com anomalias se algum cenário projeta >50% do valor ativo em 12m.
+
+    Retorna None se todos os cenários estão dentro dos benchmarks.
+    """
+    LIMITE_SANIDADE = 0.50
+    anomalias = []
+    for key in _CENARIO_KEYS:
+        curva = res.get(key, {}).get("curva", [])
+        if not curva:
+            continue
+        recup_12m_cents = round(curva[-1] * 100)
+        pct = recup_12m_cents / valor_ativo_cents if valor_ativo_cents else 0
+        if pct > LIMITE_SANIDADE:
+            anomalias.append({
+                "cenario":              _CENARIO_LABELS[key],
+                "pct_valor_ativo":      round(pct * 100, 1),
+                "valor_projetado_cents": recup_12m_cents,
+            })
+    return {"anomalias": anomalias} if anomalias else None
 
 
 def _decay_calibrado(sessao_id: int | None) -> bool:
@@ -153,10 +193,7 @@ def _fig_recuperacao_cumulativa(res: dict) -> go.Figure:
         ("agr",  "Agressivo",   DELFT,  "dash"),
     ]
     for key, label, color, dash in cenarios:
-        acum, total = [], 0
-        for v in res[key]["curva"]:
-            total += v
-            acum.append(total / 100)
+        acum = res[key]["curva"]   # já cumulativo em R$ (C1.1)
 
         line = {"color": color, "width": 2}
         if dash:
@@ -495,6 +532,18 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
 
     res = _calcular_cenarios(base, _DEFAULT_ADESAO, _DEFAULT_CUSTO)
 
+    # C1.2: verifica sanidade na renderização inicial
+    sanidade_inicial = _validar_sanidade_cenarios(res["val_agr"], res)
+    if sanidade_inicial:
+        from vega.app.components.alerts import alerta_cenario_anomalo
+        alerta_children = alerta_cenario_anomalo(sanidade_inicial["anomalias"])
+        alerta_style    = {}
+        charts_style    = {"display": "none"}
+    else:
+        alerta_children = []
+        alerta_style    = {"display": "none"}
+        charts_style    = {}
+
     return html.Div([
         # 1. Tabela de projeção de cenários
         _tabela_cenarios(base, res),
@@ -502,48 +551,56 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
         # 2. Aviso âmbar RN-06 — obrigatório (oculta só quando decay_calibrado=true)
         _aviso_decay(visible=not _decay_calibrado(sessao_id)),
 
-        # 3. Chart: Recuperação cumulativa (3 linhas + estrela de payback)
-        _chart_card(
-            "Recuperação Cumulativa — 12 meses",
-            "★ indica o mês de payback em cada cenário",
-            dcc.Graph(
-                id="graph-rec-cumulativa-7",
-                figure=_fig_recuperacao_cumulativa(res),
-                config={"displayModeBar": False},
-            ),
-        ),
+        # C1.2: alerta de sanidade — visível quando projeção excede 50% do valor ativo
+        html.Div(id="alerta-sanidade-7", children=alerta_children, style=alerta_style),
 
-        # 4. Chart: ROI por cenário
-        _chart_card(
-            "ROI por Cenário",
-            "(Recuperação projetada − Custo operacional) / Custo × 100",
-            dcc.Graph(
-                id="graph-roi-cenarios-7",
-                figure=_fig_roi(res),
-                config={"displayModeBar": False},
+        # C1.2: container dos gráficos — oculto enquanto alerta não for confirmado com override
+        html.Div(id="charts-cenarios-7", style=charts_style, children=[
+            # 3. Chart: Recuperação cumulativa (3 linhas + estrela de payback)
+            _chart_card(
+                "Recuperação Cumulativa — 12 meses",
+                "★ indica o mês de payback em cada cenário",
+                dcc.Graph(
+                    id="graph-rec-cumulativa-7",
+                    figure=_fig_recuperacao_cumulativa(res),
+                    config={"displayModeBar": False},
+                ),
             ),
-        ),
 
-        # 5. Chart: Elasticidade de desconto (duplo eixo Y)
-        _chart_card(
-            "Elasticidade de Desconto",
-            "Base: cenário moderado · adesão esperada (%) × valor líquido projetado (R$M)",
-            dcc.Graph(
-                id="graph-elasticidade-7",
-                figure=_fig_elasticidade(res["val_mod"], _DEFAULT_ADESAO["mod"]),
-                config={"displayModeBar": False},
+            # 4. Chart: ROI por cenário
+            _chart_card(
+                "ROI por Cenário",
+                "(Recuperação projetada − Custo operacional) / Custo × 100",
+                dcc.Graph(
+                    id="graph-roi-cenarios-7",
+                    figure=_fig_roi(res),
+                    config={"displayModeBar": False},
+                ),
             ),
-        ),
+
+            # 5. Chart: Elasticidade de desconto (duplo eixo Y)
+            _chart_card(
+                "Elasticidade de Desconto",
+                "Base: cenário moderado · adesão esperada (%) × valor líquido projetado (R$M)",
+                dcc.Graph(
+                    id="graph-elasticidade-7",
+                    figure=_fig_elasticidade(res["val_mod"], _DEFAULT_ADESAO["mod"]),
+                    config={"displayModeBar": False},
+                ),
+            ),
+        ]),
 
         # 6. Botão de insights cruzados
         _btn_insights(),
 
-        # Store local com a base dos cenários (passado aos callbacks via State)
+        # Stores
         dcc.Store(id="store-base-cenarios-7", data={
             "Q1": dict(base["Q1"]),
             "Q2": dict(base["Q2"]),
             "Q3": dict(base["Q3"]),
         }),
+        dcc.Store(id="store-sanidade-7",  data=sanidade_inicial or {}),
+        dcc.Store(id="store-override-7",  data={"confirmado": False}),
     ])
 
 
@@ -567,6 +624,7 @@ def registrar_callbacks(app: Any) -> None:
         Output("graph-rec-cumulativa-7","figure"),
         Output("graph-roi-cenarios-7",  "figure"),
         Output("graph-elasticidade-7",  "figure"),
+        Output("store-sanidade-7",      "data"),    # C1.2
         Input("input-adesao-cons",      "value"),
         Input("input-adesao-mod",       "value"),
         Input("input-adesao-agr",       "value"),
@@ -597,6 +655,7 @@ def registrar_callbacks(app: Any) -> None:
             "agr":  float(custo_agr  if custo_agr  is not None else _DEFAULT_CUSTO["agr"]),
         }
         res = _calcular_cenarios(base_data, adesoes, custos)
+        sanidade = _validar_sanidade_cenarios(res["val_agr"], res)
 
         return (
             _fmt_reais(res["cons"]["recuperacao_cents"]),
@@ -614,7 +673,47 @@ def registrar_callbacks(app: Any) -> None:
             _fig_recuperacao_cumulativa(res),
             _fig_roi(res),
             _fig_elasticidade(res["val_mod"], adesoes["mod"]),
+            sanidade or {},
         )
+
+    # ── Callbacks C1.2 — trava de sanidade + override ─────────────────────────
+
+    @app.callback(
+        Output("alerta-sanidade-7", "children"),
+        Output("alerta-sanidade-7", "style"),
+        Output("charts-cenarios-7", "style"),
+        Input("store-sanidade-7",   "data"),
+        Input("store-override-7",   "data"),
+    )
+    def render_sanidade_ui(sanidade_data, override_data):
+        override_ok  = bool((override_data or {}).get("confirmado"))
+        tem_anomalia = bool(sanidade_data and sanidade_data.get("anomalias"))
+
+        if tem_anomalia and not override_ok:
+            from vega.app.components.alerts import alerta_cenario_anomalo
+            return (
+                alerta_cenario_anomalo(sanidade_data["anomalias"]),
+                {},
+                {"display": "none"},
+            )
+        return [], {"display": "none"}, {}
+
+    @app.callback(
+        Output("btn-override-cenario", "disabled"),
+        Input("textarea-justificativa-override", "value"),
+    )
+    def habilitar_btn_override(justificativa):
+        return len(justificativa or "") < 20
+
+    @app.callback(
+        Output("store-override-7",   "data"),
+        Input("btn-override-cenario", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def confirmar_override(n_clicks):
+        if not n_clicks:
+            raise PreventUpdate
+        return {"confirmado": True}
 
     @app.callback(
         Output("aviso-decay-7", "style"),

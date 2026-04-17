@@ -61,6 +61,28 @@ def _fmt_num(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def verificar_q1_dimensao(scores_df: pd.DataFrame, total_contribuintes: int) -> str | None:
+    """Retorna 'vazio' | 'excessivo' | None.
+
+    Aceita tanto scores_df individual (com contribuinte_id) quanto
+    df_q agregado (com count_contrib).
+    """
+    q1 = scores_df[scores_df["quadrante"] == "Q1"]
+    if "contribuinte_id" in q1.columns:
+        contrib_q1 = q1["contribuinte_id"].nunique()
+    else:
+        contrib_q1 = int(q1["count_contrib"].sum()) if not q1.empty else 0
+
+    if contrib_q1 == 0:
+        return "vazio"
+
+    pct = contrib_q1 / total_contribuintes if total_contribuintes > 0 else 0
+    if pct > 0.18:
+        return "excessivo"
+
+    return None
+
+
 # ── Mock data (Beberibe 2026) ─────────────────────────────────────────────────
 # Distribuições de score — 5 447 CDAs totais
 # Prioridade (0–60): bins de 5 pts — pico em 30–40, caudas curtas
@@ -191,27 +213,36 @@ def _fig_histograma_recuperabilidade(df: pd.DataFrame) -> go.Figure:
 # ── Componentes reativos (alimentados por callback) ───────────────────────────
 
 def _render_q1_alert(df_q: pd.DataFrame) -> html.Div:
-    """Retorna banner âmbar se Q1 estiver vazio, ou Div vazio caso contrário."""
-    q1_row = df_q[df_q["quadrante"] == "Q1"]
-    q1_count = int(q1_row["count_cdas"].sum()) if not q1_row.empty else 0
-    if q1_count > 0:
-        return html.Div()
-    return html.Div([
-        html.Span("⚠", style={"fontSize": 18, "flexShrink": 0}),
-        html.Div([
-            html.Div("Nenhuma CDA atinge os thresholds de Q1",
-                     style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
-            html.Div(
-                "Os thresholds configurados são exigentes demais para esta carteira. "
-                "Considere reduzir os valores de prioridade e/ou recuperabilidade na sidebar.",
-                style={"fontSize": 11, "color": "#92400E", "lineHeight": 1.6},
-            ),
-        ], style={"flex": 1}),
-    ], style={
-        "display": "flex", "alignItems": "flex-start", "gap": 12,
-        "background": "#FEF3C7", "border": "1px solid #FCD34D", "borderRadius": 8,
-        "padding": "12px 16px", "marginBottom": 12,
-    })
+    """Retorna alerta âmbar se Q1 vazio ou excessivo, Div vazio caso contrário."""
+    total = int(df_q["count_contrib"].sum()) if not df_q.empty else 0
+    tipo = verificar_q1_dimensao(df_q, total)
+
+    if tipo == "vazio":
+        return html.Div([
+            html.Span("⚠", style={"fontSize": 18, "flexShrink": 0}),
+            html.Div([
+                html.Div("Nenhuma CDA atinge os thresholds de Q1",
+                         style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
+                html.Div(
+                    "Os thresholds configurados são exigentes demais para esta carteira. "
+                    "Considere reduzir os valores de prioridade e/ou recuperabilidade na sidebar.",
+                    style={"fontSize": 11, "color": "#92400E", "lineHeight": 1.6},
+                ),
+            ], style={"flex": 1}),
+        ], style={
+            "display": "flex", "alignItems": "flex-start", "gap": 12,
+            "background": "#FEF3C7", "border": "1px solid #FCD34D", "borderRadius": 8,
+            "padding": "12px 16px", "marginBottom": 12,
+        })
+
+    if tipo == "excessivo":
+        q1_row = df_q[df_q["quadrante"] == "Q1"]
+        contrib_q1 = int(q1_row["count_contrib"].sum()) if not q1_row.empty else 0
+        pct = contrib_q1 / total if total > 0 else 0
+        from vega.app.components.alerts import alerta_q1_excessivo
+        return alerta_q1_excessivo(contrib_q1, pct)
+
+    return html.Div()
 
 
 def _render_matriz(df_q: pd.DataFrame, thr_pri: int, thr_rec: int) -> html.Div:
@@ -333,17 +364,37 @@ def _btn_insights_2() -> html.Div:
 
 
 def _card_aviso_ordinal() -> html.Div:
-    """Card fixo de rodapé — RN-05: score é índice ordinal, não probabilidade."""
+    """Card fixo de rodapé — RN-05: Priority Index v1, não probabilidade (C1.5)."""
     return html.Div([
         html.Span("ℹ", style={"fontSize": 16, "flexShrink": 0, "color": DELFT}),
         html.Div([
-            html.Strong("Score é um índice ordinal, não uma probabilidade de pagamento. ",
-                        style={"color": DELFT, "fontSize": 11}),
+            html.Div([
+                html.Strong("Priority Index v1 · Modelo Determinístico ",
+                            style={"color": DELFT, "fontSize": 11}),
+                html.Span("(display name: Score)",
+                          style={"fontSize": 10, "color": GRAY}),
+            ], style={"marginBottom": 4}),
             html.Span(
-                "O Score v1 classifica CDAs por prioridade relativa de abordagem. "
-                "Scores mais altos indicam maior urgência + recuperabilidade combinadas, "
-                "mas não representam chance percentual de recebimento.",
+                "Instrumento ordinal de priorização baseado em 4 dimensões: "
+                "dim_valor, dim_urgencia, dim_contato, dim_comportamento. "
+                "Eixo Prioridade (0–60) + Recuperabilidade (0–50). ",
                 style={"fontSize": 11, "color": "#6B7280"},
+            ),
+            html.Br(),
+            html.Strong("Este índice NÃO é um score estatístico de probabilidade de default. ",
+                        style={"fontSize": 11, "color": DELFT}),
+            html.Span(
+                "É um ranqueamento heurístico para segmentar a carteira em quadrantes de ação. "
+                "As dimensões dim_contato e dim_comportamento são correlacionadas e somadas "
+                "linearmente por design do modelo v1. Use para ordenar e segmentar — nunca para "
+                "projetar taxas de conversão individuais.",
+                style={"fontSize": 11, "color": "#6B7280"},
+            ),
+            html.Br(),
+            html.Span(
+                "Uma versão supervisionada com probabilidade calibrada (Score v2) está no roadmap "
+                "para após 6–12 meses de dados operacionais acumulados.",
+                style={"fontSize": 10, "color": GRAY, "fontStyle": "italic"},
             ),
         ]),
     ], style={

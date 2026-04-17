@@ -264,9 +264,24 @@ class ScorerV1:
             return "Correspondência + Regulariza"
 
         if quadrante == "Q3":
-            if valor_alto:
-                return "Protesto em cartório"
-            return "Execução fiscal em lote"
+            status = (_get(row, "status_da") or "ativo").lower()
+
+            # Q3a: baixa técnica — irrecuperável
+            if status in ("baixado", "falecido", "cancelado"):
+                return "Baixa técnica — irrecuperável"
+
+            # Q3c: prescrição já interrompida por protesto/parcelamento
+            if _get(row, "prescricao_interrompida", False):
+                return "Monitorar — prescrição já interrompida"
+
+            # Q3d: prescrição iminente — protesto urgente
+            dias_totais = int(_get(row, "dias_totais", 0) or 0)
+            dias_decorridos = int(_get(row, "dias_decorridos", 0) or 0)
+            if dias_totais > 0 and (dias_totais - dias_decorridos) < 365:
+                return "Protesto urgente — prescrição em 12 meses"
+
+            # Q3b: protesto padrão — default para Q3 viável (modelo IEPTB, custo zero para município)
+            return "Protesto em cartório"
 
         # Q4
         return "Monitorar — sem ação ativa"

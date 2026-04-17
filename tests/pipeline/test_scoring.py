@@ -128,15 +128,18 @@ def test_S07_NBA_Q1_pulverizado_sugere_acordo_global():
 
 
 # --- S-08 ----------------------------------------------------------------
-def test_S08_NBA_Q3_valor_alto_sugere_protesto_em_cartorio():
-    """Q3 com valor > R$ 10k → NBA = 'Protesto em cartório'."""
+def test_S08_NBA_Q3_padrao_eh_protesto_em_cartorio():
+    """Q3 viável (status ativo, prescrição não iminente) → NBA = 'Protesto em cartório'.
+
+    Novo comportamento (C1.3): protesto é o default para Q3 viável —
+    não depende mais de valor_alto. Município opera via convênio IEPTB,
+    custo marginal zero para o ente.
+    dias_decorridos=1000 → dias_para_prescricao=825 >= 365 (não iminente).
+    """
     scorer = ScorerV1()
-    # Q3: prioridade alta, recuperabilidade baixa.
-    # Valor alto (+26 dim_valor), urgência alta, sem contato digital,
-    # sem histórico → rec baixa.
     row = _base_row(
-        valor_corrigido_cents=3_000_000,   # > R$ 10k → valor_alto = True
-        dias_decorridos=int(365 * 5 * 0.9),
+        valor_corrigido_cents=3_000_000,
+        dias_decorridos=1000,              # dias_para_prescricao=825 >= 365
         dias_totais=365 * 5,
         status_da="ativo",
         data_parcelamento=None,
@@ -187,3 +190,78 @@ def test_dim_contato_niveis():
     assert scorer.calcular_dim_contato("telefone_apenas") == 14
     assert scorer.calcular_dim_contato("so_endereco") == 8
     assert scorer.calcular_dim_contato("incontactavel") == 0
+
+
+# --- C1.3 — NBA Q3 sub-categorias ----------------------------------------
+
+def _q3_row(**overrides) -> dict:
+    """Row forçado para Q3: prioridade alta (dim_valor+dim_urgencia≥40), rec baixa."""
+    base = _base_row(
+        valor_corrigido_cents=3_000_000,   # dim_valor=30
+        dias_decorridos=1000,              # dim_urgencia=16 → prioridade=46>=40
+        dias_totais=365 * 5,
+        # sem contato → dim_contato=0, dim_comportamento=10 → rec=10<30 → Q3
+        whatsapp=None, celular=None, email=None,
+        telefone=None, logradouro=None, bairro=None,
+        status_da="ativo",
+        data_parcelamento=None,
+        prescricao_interrompida=False,
+    )
+    base.update(overrides)
+    return base
+
+
+def test_nba_q3_baixa_tecnica():
+    """status_da='baixado' em Q3 → 'Baixa técnica — irrecuperável'."""
+    scorer = ScorerV1()
+    row    = _q3_row(status_da="baixado")
+    score  = scorer.calcular_score(row, PARAMS_DEFAULT)
+    assert score.quadrante    == "Q3"
+    assert score.acao_sugerida == "Baixa técnica — irrecuperável"
+
+
+def test_nba_q3_prescricao_interrompida():
+    """Q3 com prescricao_interrompida=True → 'Monitorar — prescrição já interrompida'."""
+    scorer = ScorerV1()
+    row    = _q3_row(prescricao_interrompida=True)
+    score  = scorer.calcular_score(row, PARAMS_DEFAULT)
+    assert score.quadrante    == "Q3"
+    assert score.acao_sugerida == "Monitorar — prescrição já interrompida"
+
+
+def test_nba_q3_prescricao_iminente():
+    """Q3 com 180 dias para prescrição → 'Protesto urgente — prescrição em 12 meses'."""
+    scorer = ScorerV1()
+    # dias_totais=1825, dias_decorridos=1645 → dias_para_prescricao=180 < 365
+    row = _q3_row(
+        dias_decorridos=1645,
+        dias_totais=365 * 5,
+    )
+    score = scorer.calcular_score(row, PARAMS_DEFAULT)
+    assert score.quadrante    == "Q3"
+    assert score.acao_sugerida == "Protesto urgente — prescrição em 12 meses"
+
+
+def test_nba_q3_padrao_nao_depende_de_valor_alto():
+    """Q3 com R$10k (não era 'valor_alto' na lógica antiga) → 'Protesto em cartório'.
+
+    Antes da C1.3, valor_cents == 1_000_000 (== R$10k) resultava em
+    'Execução fiscal em lote' (valor_alto = 1_000_000 > 1_000_000 = False).
+    Novo comportamento: protesto é o default para Q3 viável, sem dependência de valor.
+
+    dim_valor(1_000_000)=20, dim_urgencia(1460,1825,30)=24 → prioridade=44>=40.
+    dias_para_prescricao=365 → não iminente (365 < 365 é False).
+    """
+    scorer = ScorerV1()
+    row = _base_row(
+        valor_corrigido_cents=1_000_000,   # R$ 10.000 — não era valor_alto na lógica antiga
+        dias_decorridos=1460,              # dias_para_prescricao=365 (não < 365)
+        dias_totais=365 * 5,
+        whatsapp=None, celular=None, email=None,
+        telefone=None, logradouro=None, bairro=None,
+        status_da="ativo",
+        prescricao_interrompida=False,
+    )
+    score = scorer.calcular_score(row, PARAMS_DEFAULT)
+    assert score.quadrante    == "Q3"
+    assert score.acao_sugerida == "Protesto em cartório"
