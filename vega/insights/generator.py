@@ -60,3 +60,17 @@ Dados:
 {metricas}
 """
     return _completar(prompt)
+
+
+def gerar_insights_safra_aging(metricas: dict) -> str:
+    """Insights cruzados da Aba 4 — Safra & Aging."""
+    prompt = f"""
+Analise os dados de safra e aging da carteira abaixo e gere 4 insights acionáveis.
+Foque em: safra com melhor desempenho, risco de prescrição iminente (bruta vs líquida),
+concentração de valor por faixa etária e padrão sazonal de inscrições vs recuperações.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)

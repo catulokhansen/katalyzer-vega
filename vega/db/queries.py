@@ -458,3 +458,184 @@ def distribuicao_recuperabilidade(carteira_id: int, sessao_id: int) -> pd.DataFr
         df = pd.read_sql(sql, conn, params={"carteira_id": carteira_id, "sessao_id": sessao_id})
     df["bin_label"] = df["bin_min"].apply(lambda x: f"{x}–{x + 5}")
     return df
+
+
+# ── Aba 4 — Safra & Aging ─────────────────────────────────────────────────────
+
+def metricas_safra(carteira_id: int) -> pd.DataFrame:
+    """KPIs da Aba 4: safras analisadas, melhor safra, prescrição bruta/líquida, idade média.
+
+    Retorna uma única linha com: safras_analisadas, melhor_safra,
+    prescricao_bruta_cents, prescricao_liquida_cents,
+    idade_media_ponderada, mediana_idade.
+    """
+    sql = """
+        WITH ativas AS (
+            SELECT
+                h.valor_corrigido_cents,
+                h.safra,
+                h.dias_para_prescricao,
+                h.prescricao_interrompida,
+                EXTRACT(EPOCH FROM (CURRENT_DATE - b.data_inscricao))
+                    / 86400.0 / 365.25                       AS idade_anos
+            FROM vega.cdas_higienizadas h
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        ),
+        melhor_safra_cte AS (
+            SELECT safra
+            FROM vega.historico_safra
+            WHERE carteira_id = %(carteira_id)s
+            GROUP BY safra
+            ORDER BY MAX(taxa_recuperacao_pct) DESC
+            LIMIT 1
+        )
+        SELECT
+            COUNT(DISTINCT a.safra)                                        AS safras_analisadas,
+            (SELECT safra FROM melhor_safra_cte)                           AS melhor_safra,
+            SUM(CASE WHEN a.dias_para_prescricao <= 365
+                 THEN a.valor_corrigido_cents ELSE 0 END)                  AS prescricao_bruta_cents,
+            SUM(CASE WHEN a.dias_para_prescricao <= 365
+                      AND a.prescricao_interrompida = FALSE
+                 THEN a.valor_corrigido_cents ELSE 0 END)                  AS prescricao_liquida_cents,
+            ROUND(
+                SUM(a.valor_corrigido_cents * a.idade_anos)::NUMERIC
+                / NULLIF(SUM(a.valor_corrigido_cents), 0),
+                1
+            )                                                              AS idade_media_ponderada,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a.idade_anos)     AS mediana_idade
+        FROM ativas a
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def vintage_por_safra(carteira_id: int) -> pd.DataFrame:
+    """Valor inscrito e taxa de recuperação por safra (duplo eixo Y).
+
+    Retorna: safra, valor_inscrito_cents, taxa_recuperacao_pct.
+    taxa_recuperacao_pct = taxa máxima registrada em historico_safra para cada safra.
+    """
+    sql = """
+        WITH valor_por_safra AS (
+            SELECT
+                h.safra,
+                SUM(h.valor_corrigido_cents)  AS valor_inscrito_cents
+            FROM vega.cdas_higienizadas h
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+              AND h.safra IS NOT NULL
+            GROUP BY h.safra
+        ),
+        taxa_por_safra AS (
+            SELECT
+                safra,
+                MAX(taxa_recuperacao_pct)     AS taxa_recuperacao_pct
+            FROM vega.historico_safra
+            WHERE carteira_id = %(carteira_id)s
+            GROUP BY safra
+        )
+        SELECT
+            v.safra,
+            v.valor_inscrito_cents,
+            COALESCE(t.taxa_recuperacao_pct, 0) AS taxa_recuperacao_pct
+        FROM valor_por_safra v
+        LEFT JOIN taxa_por_safra t ON t.safra = v.safra
+        ORDER BY v.safra
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def aging_por_faixa(carteira_id: int) -> pd.DataFrame:
+    """Valor ativo por faixa etária, separado em normal × prescrição interrompida.
+
+    Retorna: faixa_idade, valor_normal_cents, valor_interrompido_cents.
+    """
+    sql = """
+        SELECT
+            h.faixa_idade,
+            SUM(CASE WHEN h.prescricao_interrompida = FALSE OR h.prescricao_interrompida IS NULL
+                 THEN h.valor_corrigido_cents ELSE 0 END) AS valor_normal_cents,
+            SUM(CASE WHEN h.prescricao_interrompida = TRUE
+                 THEN h.valor_corrigido_cents ELSE 0 END) AS valor_interrompido_cents
+        FROM vega.cdas_higienizadas h
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+          AND h.faixa_idade IS NOT NULL
+        GROUP BY h.faixa_idade
+        ORDER BY
+            CASE h.faixa_idade
+                WHEN 'lt_6m'  THEN 1
+                WHEN '6m_1a'  THEN 2
+                WHEN '1a_2a'  THEN 3
+                WHEN '2a_3a'  THEN 4
+                WHEN '3a_4a'  THEN 5
+                WHEN '4a_5a'  THEN 6
+                ELSE 9
+            END
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def decay_por_safra(carteira_id: int) -> pd.DataFrame:
+    """Curva de decay: taxa acumulada de recuperação por safra × meses desde inscrição.
+
+    Retorna: safra, meses_desde_inscricao, taxa_recuperacao_pct.
+    Retorna DataFrame vazio se historico_safra não tiver dados para esta carteira.
+    """
+    sql = """
+        SELECT
+            safra,
+            meses_desde_inscricao,
+            taxa_recuperacao_pct
+        FROM vega.historico_safra
+        WHERE carteira_id = %(carteira_id)s
+        ORDER BY safra, meses_desde_inscricao
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def sazonalidade(carteira_id: int) -> pd.DataFrame:
+    """Média de CDAs inscritas e recuperadas por mês do ano (1–12).
+
+    Retorna: mes, media_inscritas, media_recuperadas.
+    """
+    sql = """
+        WITH inscricoes AS (
+            SELECT
+                EXTRACT(MONTH FROM b.data_inscricao)::INT   AS mes,
+                COUNT(*)                                    AS total_inscritas,
+                COUNT(DISTINCT
+                    EXTRACT(YEAR FROM b.data_inscricao))    AS anos_distintos
+            FROM vega.cdas_brutas b
+            WHERE b.carteira_id = %(carteira_id)s
+            GROUP BY EXTRACT(MONTH FROM b.data_inscricao)
+        ),
+        recuperacoes AS (
+            SELECT
+                EXTRACT(MONTH FROM f.ano_mes)::INT          AS mes,
+                SUM(f.cdas_recuperadas)                     AS total_recuperadas,
+                COUNT(*)                                    AS meses_count
+            FROM vega.fluxo_mensal f
+            WHERE f.carteira_id = %(carteira_id)s
+            GROUP BY EXTRACT(MONTH FROM f.ano_mes)
+        )
+        SELECT
+            i.mes,
+            ROUND(i.total_inscritas::NUMERIC
+                  / NULLIF(i.anos_distintos, 0), 1)         AS media_inscritas,
+            COALESCE(
+                ROUND(r.total_recuperadas::NUMERIC
+                      / NULLIF(r.meses_count, 0), 1),
+                0
+            )                                               AS media_recuperadas
+        FROM inscricoes i
+        LEFT JOIN recuperacoes r ON r.mes = i.mes
+        ORDER BY i.mes
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
