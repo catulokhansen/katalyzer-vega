@@ -1,0 +1,62 @@
+"""Geração de insights via OpenAI por aba."""
+from __future__ import annotations
+
+import os
+
+_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
+_SYSTEM = (
+    "Você é um analista sênior de carteiras de dívida ativa municipal. "
+    "Responda sempre em português. Seja direto e use os números fornecidos."
+)
+
+
+def _completar(prompt: str) -> str:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    resp = client.chat.completions.create(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _SYSTEM},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=800,
+    )
+    return resp.choices[0].message.content
+
+
+def gerar_insights_diagnostico(metricas: dict) -> str:
+    """Insights cruzados da Aba 1 — Diagnóstico."""
+    prompt = f"""
+Analise os dados abaixo e gere 4 insights acionáveis.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)
+
+
+def gerar_insights_segmentacao(metricas: dict) -> str:
+    """Insights cruzados da Aba 2 — Segmentação."""
+    prompt = f"""
+Analise a segmentação da carteira abaixo e gere 4 insights acionáveis.
+Foque em: concentração de valor por faixa, proporção PF vs PJ, e oportunidades de campanha segmentada.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)
+
+
+def gerar_insights_scoring(metricas: dict) -> str:
+    """Insights cruzados da Aba 3 — Scoring."""
+    prompt = f"""
+Analise a distribuição de scores e quadrantes abaixo e gere 4 insights acionáveis.
+Foque em: dimensão do Q1 vs esforço operacional, CDAs em Q3 para execução fiscal, e oportunidades de recuperação rápida.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)

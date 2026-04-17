@@ -260,3 +260,201 @@ def valor_por_idade_tributo(carteira_id: int) -> pd.DataFrame:
     """
     with get_conn() as conn:
         return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+# ── Aba 2 — Segmentação ───────────────────────────────────────────────────────
+
+def distribuicao_faixa_valor(carteira_id: int) -> pd.DataFrame:
+    """Distribuição de CDAs ativas por faixa de valor.
+
+    Retorna: faixa_valor, count_cdas, valor_cents, pct_count, pct_valor.
+    """
+    sql = """
+        WITH total AS (
+            SELECT COUNT(*)                       AS total_cdas,
+                   SUM(valor_corrigido_cents)      AS total_cents
+            FROM vega.cdas_higienizadas
+            WHERE carteira_id = %(carteira_id)s AND ativa = TRUE
+        )
+        SELECT
+            h.faixa_valor,
+            COUNT(*)                                AS count_cdas,
+            SUM(h.valor_corrigido_cents)            AS valor_cents,
+            ROUND(COUNT(*)::NUMERIC
+                  / NULLIF(t.total_cdas, 0) * 100, 1) AS pct_count,
+            ROUND(SUM(h.valor_corrigido_cents)::NUMERIC
+                  / NULLIF(t.total_cents, 0) * 100, 1) AS pct_valor
+        FROM vega.cdas_higienizadas h
+        CROSS JOIN total t
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+          AND h.faixa_valor IS NOT NULL
+        GROUP BY h.faixa_valor, t.total_cdas, t.total_cents
+        ORDER BY
+            CASE h.faixa_valor
+                WHEN 'ate_500'    THEN 1
+                WHEN '500_2k'     THEN 2
+                WHEN '2k_10k'     THEN 3
+                WHEN '10k_50k'    THEN 4
+                WHEN 'acima_50k'  THEN 5
+                ELSE 9
+            END
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def pf_vs_pj(carteira_id: int) -> pd.DataFrame:
+    """PF vs PJ: contagem de CDAs, valor e número de contribuintes.
+
+    Retorna: contribuinte_tipo, count_cdas, valor_cents, count_contrib.
+    """
+    sql = """
+        SELECT
+            b.contribuinte_tipo,
+            COUNT(*)                           AS count_cdas,
+            SUM(h.valor_corrigido_cents)       AS valor_cents,
+            COUNT(DISTINCT b.contribuinte_id)  AS count_contrib
+        FROM vega.cdas_higienizadas h
+        JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+        GROUP BY b.contribuinte_tipo
+        ORDER BY b.contribuinte_tipo
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def matriz_segmentos(carteira_id: int) -> pd.DataFrame:
+    """Matriz pivotada: tributo × faixa_valor (count CDAs ativas).
+
+    Retorna DataFrame com colunas: tributo, ate_500, 500_2k, 2k_10k, 10k_50k, acima_50k.
+    """
+    sql = """
+        SELECT
+            b.tributo,
+            h.faixa_valor,
+            COUNT(*) AS count_cdas
+        FROM vega.cdas_higienizadas h
+        JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+          AND h.faixa_valor IS NOT NULL
+        GROUP BY b.tributo, h.faixa_valor
+        ORDER BY b.tributo, h.faixa_valor
+    """
+    with get_conn() as conn:
+        df = pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+    if df.empty:
+        return df
+    faixas = ["ate_500", "500_2k", "2k_10k", "10k_50k", "acima_50k"]
+    pivot = df.pivot_table(
+        index="tributo", columns="faixa_valor", values="count_cdas", fill_value=0
+    )
+    cols = [c for c in faixas if c in pivot.columns]
+    return pivot[cols].reset_index()
+
+
+# ── Aba 3 — Scoring ───────────────────────────────────────────────────────────
+
+def distribuicao_quadrantes(
+    carteira_id: int,
+    sessao_id: int,
+    thr_prioridade: int = 40,
+    thr_recuperab: int = 30,
+) -> pd.DataFrame:
+    """Distribuição de CDAs pelos 4 quadrantes, calculada dinamicamente pelos thresholds.
+
+    Retorna: quadrante, valor_cents, count_contrib, count_cdas, pct_valor.
+    """
+    sql = """
+        WITH classificados AS (
+            SELECT
+                h.valor_corrigido_cents,
+                b.contribuinte_id,
+                CASE
+                    WHEN s.eixo_prioridade >= %(thr_pri)s
+                     AND s.eixo_recuperabilidade >= %(thr_rec)s THEN 'Q1'
+                    WHEN s.eixo_prioridade < %(thr_pri)s
+                     AND s.eixo_recuperabilidade >= %(thr_rec)s THEN 'Q2'
+                    WHEN s.eixo_prioridade >= %(thr_pri)s
+                     AND s.eixo_recuperabilidade < %(thr_rec)s  THEN 'Q3'
+                    ELSE 'Q4'
+                END AS quadrante
+            FROM vega.scores s
+            JOIN vega.cdas_higienizadas h ON h.id = s.cda_higienizada_id
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE s.carteira_id = %(carteira_id)s
+              AND s.sessao_id   = %(sessao_id)s
+        ),
+        total_valor AS (
+            SELECT SUM(valor_corrigido_cents) AS total_cents FROM classificados
+        )
+        SELECT
+            c.quadrante,
+            SUM(c.valor_corrigido_cents)                    AS valor_cents,
+            COUNT(DISTINCT c.contribuinte_id)               AS count_contrib,
+            COUNT(*)                                        AS count_cdas,
+            ROUND(
+                SUM(c.valor_corrigido_cents)::NUMERIC
+                / NULLIF(t.total_cents, 0) * 100, 1
+            )                                               AS pct_valor
+        FROM classificados c
+        CROSS JOIN total_valor t
+        GROUP BY c.quadrante, t.total_cents
+        ORDER BY c.quadrante
+    """
+    with get_conn() as conn:
+        return pd.read_sql(
+            sql,
+            conn,
+            params={
+                "carteira_id": carteira_id,
+                "sessao_id":   sessao_id,
+                "thr_pri":     thr_prioridade,
+                "thr_rec":     thr_recuperab,
+            },
+        )
+
+
+def distribuicao_prioridade(carteira_id: int, sessao_id: int) -> pd.DataFrame:
+    """Histograma de Score Prioridade em 12 bins de 5 pts (0–60).
+
+    Retorna: bin_min, bin_label, count_cdas.
+    """
+    sql = """
+        SELECT
+            (eixo_prioridade / 5) * 5       AS bin_min,
+            COUNT(*)                        AS count_cdas
+        FROM vega.scores
+        WHERE carteira_id = %(carteira_id)s
+          AND sessao_id   = %(sessao_id)s
+        GROUP BY bin_min
+        ORDER BY bin_min
+    """
+    with get_conn() as conn:
+        df = pd.read_sql(sql, conn, params={"carteira_id": carteira_id, "sessao_id": sessao_id})
+    df["bin_label"] = df["bin_min"].apply(lambda x: f"{x}–{x + 5}")
+    return df
+
+
+def distribuicao_recuperabilidade(carteira_id: int, sessao_id: int) -> pd.DataFrame:
+    """Histograma de Score Recuperabilidade em 10 bins de 5 pts (0–50).
+
+    Retorna: bin_min, bin_label, count_cdas.
+    """
+    sql = """
+        SELECT
+            (eixo_recuperabilidade / 5) * 5 AS bin_min,
+            COUNT(*)                        AS count_cdas
+        FROM vega.scores
+        WHERE carteira_id = %(carteira_id)s
+          AND sessao_id   = %(sessao_id)s
+        GROUP BY bin_min
+        ORDER BY bin_min
+    """
+    with get_conn() as conn:
+        df = pd.read_sql(sql, conn, params={"carteira_id": carteira_id, "sessao_id": sessao_id})
+    df["bin_label"] = df["bin_min"].apply(lambda x: f"{x}–{x + 5}")
+    return df

@@ -17,7 +17,7 @@ try:
 except ImportError:
     pass
 
-from vega.app.tabs import tab_diagnostico
+from vega.app.tabs import tab_diagnostico, tab_segmentacao, tab_scoring
 
 
 TABS = [
@@ -105,13 +105,19 @@ def create_app() -> Dash:
     ) -> html.Div:
         if tab == "diagnostico":
             return tab_diagnostico.get_layout(carteira_id, sessao_id)
+        if tab == "segmentacao":
+            return tab_segmentacao.get_layout(carteira_id, sessao_id)
+        if tab == "scoring":
+            return tab_scoring.get_layout(carteira_id, sessao_id)
         return html.Div(
             "Aba em construção.",
             style={"color": "#9ca3af", "padding": 24, "fontSize": 13},
         )
 
-    # Callbacks internos da Aba 1 (insights, navegação)
+    # Callbacks internos por aba
     tab_diagnostico.registrar_callbacks(app)
+    tab_segmentacao.registrar_callbacks(app)
+    tab_scoring.registrar_callbacks(app)
 
     return app
 
