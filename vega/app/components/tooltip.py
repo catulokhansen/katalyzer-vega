@@ -193,7 +193,10 @@ def tooltip(tip_id: str) -> html.Span:
                 "\u24d8",  # ⓘ
                 className="vega-tooltip-icon",
                 tabIndex=0,
-                **{"aria-label": f"Ajuda: {data['titulo']}"},
+                **{
+                    "aria-label": f"Ajuda: {data['titulo']}",
+                    "aria-describedby": f"tooltip-card-{tip_id}",
+                },
                 style={
                     "display": "inline-flex",
                     "alignItems": "center",

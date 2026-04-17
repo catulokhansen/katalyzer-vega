@@ -7,15 +7,15 @@ from __future__ import annotations
 
 TOOLTIPS: dict[str, dict] = {
 
-    # ── Aba 1 — Diagnostico ──────────────────────────────────────────────────
+    # ── Aba 1 - Diagnostico ──────────────────────────────────────────────────
 
     "T-01-01": {
         "titulo": "Carteira bruta",
         "componente": "KPI",
-        "aba": "Aba 1 — Diagnostico",
+        "aba": "Aba 1 - Diagnostico",
         "o_que_mostra": (
             "Valor total da carteira recebida do cliente antes de qualquer higienizacao"
-            " — soma de todas as CDAs, incluindo prescritas, irrisorias e devedores inexistentes."
+            " - soma de todas as CDAs, incluindo prescritas, irrisorias e devedores inexistentes."
         ),
         "o_que_procurar": (
             "Compare com o total de CDAs (contagem). Um ticket medio baixo (<R$ 1.500)"
@@ -25,7 +25,7 @@ TOOLTIPS: dict[str, dict] = {
         "como_interpretar": [
             "Ate R$ 20M: carteira de municipio pequeno (ate 50k habitantes).",
             "R$ 20M-100M: municipio medio.",
-            "> R$ 100M: municipio grande — exige capacidade operacional maior.",
+            "> R$ 100M: municipio grande - exige capacidade operacional maior.",
         ],
         "acao_sugerida": (
             "Use esse valor como referencia macro, mas nunca como valor-alvo de recuperacao."
@@ -36,9 +36,9 @@ TOOLTIPS: dict[str, dict] = {
     "T-01-02": {
         "titulo": "Estoque morto",
         "componente": "KPI",
-        "aba": "Aba 1 — Diagnostico",
+        "aba": "Aba 1 - Diagnostico",
         "o_que_mostra": (
-            "Percentual da carteira bruta eliminado pela higienizacao — CDAs que nao devem"
+            "Percentual da carteira bruta eliminado pela higienizacao - CDAs que nao devem"
             " ser trabalhadas por prescricao, valor irrisorio ou devedor inexistente."
         ),
         "o_que_procurar": (
@@ -47,10 +47,10 @@ TOOLTIPS: dict[str, dict] = {
             " politica de inscricao."
         ),
         "como_interpretar": [
-            "< 20%: carteira com higienizacao previa consistente — raro.",
+            "< 20%: carteira com higienizacao previa consistente - raro.",
             "20-35%: padrao de mercado para carteiras bem geridas.",
-            "35-50%: problema historico de gestao — argumento de urgencia.",
-            "> 50%: inacao estrutural — receita publica sendo perdida sistematicamente.",
+            "35-50%: problema historico de gestao - argumento de urgencia.",
+            "> 50%: inacao estrutural - receita publica sendo perdida sistematicamente.",
         ],
         "acao_sugerida": (
             "Se > 40%, abrir o funil decomposto e identificar a causa dominante. Use o"
@@ -66,7 +66,7 @@ TOOLTIPS: dict[str, dict] = {
     "T-01-06": {
         "titulo": "Funil de higienizacao",
         "componente": "Grafico funil decomposto",
-        "aba": "Aba 1 — Diagnostico",
+        "aba": "Aba 1 - Diagnostico",
         "o_que_mostra": (
             "Decomposicao do estoque morto em 3 segmentos: prescricao (vermelho escuro),"
             " valor irrisorio (vermelho), devedor inexistente (laranja). Mostra visualmente"
@@ -80,9 +80,9 @@ TOOLTIPS: dict[str, dict] = {
         "como_interpretar": [
             "Prescricao dominante: municipio nao tem operacao de cobranca estruturada ha"
             " anos. Argumento de urgencia.",
-            "Irrisorio dominante: politica de inscricao problematica — muitas CDAs de"
+            "Irrisorio dominante: politica de inscricao problematica - muitas CDAs de"
             " R$ 30 a R$ 200. Custo de cobranca nao compensa.",
-            "Devedor inexistente dominante: problema cadastral grave — CPFs/CNPJs invalidos,"
+            "Devedor inexistente dominante: problema cadastral grave - CPFs/CNPJs invalidos,"
             " enderecos vazios, contribuintes nunca cadastrados corretamente.",
         ],
         "acao_sugerida": (

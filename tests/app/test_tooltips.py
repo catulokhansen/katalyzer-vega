@@ -78,3 +78,28 @@ def test_component_tooltip_renderiza():
 
     result = tooltip("T-01-01")
     assert isinstance(result, html.Span)
+
+
+# ── 7. Nenhum caractere tipografico nos textos ────────────────────────────────
+
+_TIPOGRAFICOS = [
+    "\u2018",  # aspas simples esquerda
+    "\u2019",  # aspas simples direita
+    "\u201c",  # aspas duplas esquerda
+    "\u201d",  # aspas duplas direita
+    "\u2013",  # en dash
+    "\u2014",  # em dash
+]
+
+
+def test_tooltip_sem_caracteres_tipograficos():
+    from vega.app.components.tooltips_content import TOOLTIPS
+
+    for tip_id, data in TOOLTIPS.items():
+        for campo, valor in data.items():
+            textos = valor if isinstance(valor, list) else [valor]
+            for texto in textos:
+                for char in _TIPOGRAFICOS:
+                    assert char not in texto, (
+                        f"{tip_id}.{campo}: caractere tipografico proibido {repr(char)} encontrado"
+                    )
