@@ -1,0 +1,26 @@
+numero_cda,contribuinte_cpf_cnpj,contribuinte_nome,tributo,valor_principal,valor_juros,valor_multa,data_inscricao,status_da,whatsapp,celular,email,telefone,logradouro,bairro
+CDA-001,12345678901,Joao da Silva,IPTU,5000.00,0,0,2023-04-16,ativo,11999990001,11999990001,joao@example.com,1122220001,Rua A 100,Centro
+CDA-002,98765432100,Maria Souza,ISS,500.00,0,0,2025-03-20,ativo,,11988880002,maria@example.com,,Rua B 200,Vila Nova
+CDA-003,11222333000181,Empresa XPTO LTDA,IPTU,15000.00,0,0,2022-06-01,protestado,11977770003,11977770003,contato@xpto.com,1144440003,Av C 300,Industrial
+CDA-004,55566677700,Pedro Lima,TAXAS,30.00,0,0,2025-01-01,ativo,,,pedro@example.com,,Rua D 400,Jardim
+CDA-005,44455566600,Ana Costa,IPTU,2000.00,0,0,2019-01-01,ativo,,,,,,
+CDA-006,33344455511,Carlos Santos,ISS,8000.00,0,0,2020-06-01,baixado,,,,,,
+CDA-007,22233344455,Beatriz Alves,IPTU,1500.00,0,0,2024-08-15,parcelado,11966660007,11966660007,beatriz@example.com,,Rua E 500,Centro
+CDA-008,66677788899,Rafael Oliveira,ITBI,250000.00,0,0,2024-10-10,ativo,11955550008,11955550008,rafael@example.com,1133330008,Rua F 600,Alto
+CDA-009,10203040506,Fernanda Dias,IPTU,60000.00,0,0,2024-05-20,ativo,11944440009,11944440009,fernanda@example.com,1122220009,Rua G 700,Centro
+CDA-010,70809010203,Lucas Pereira,ISS,120.00,0,0,2025-05-10,ativo,,,,,Rua H 800,Bairro X
+CDA-011,01020304050,Juliana Fernandes,IPTU,3500.00,0,0,2020-12-15,ativo,,,,,Rua I 900,Vila Y
+CDA-012,05060708091,Marcos Rocha,TAXAS,900.00,0,0,2024-02-01,cancelado,,,,,,
+CDA-013,66055044033,Tatiane Gomes,IPTU,7000.00,0,0,2022-01-10,ajuizado,,11977770013,tatiane@example.com,,Rua J 1000,Centro
+CDA-014,77088055022,Ricardo Barbosa,MULTAS,200.00,0,0,2025-02-14,ativo,11988880014,11988880014,,,Rua K 1100,Vila
+CDA-015,88099066011,Vanessa Lopes,IPTU,45000.00,1500.00,500.00,2024-11-30,ativo,11977770015,11977770015,vanessa@example.com,1122220015,Rua L 1200,Centro
+CDA-016,99000077001,Bruno Cardoso,ISS,55.00,0,0,2024-06-20,ativo,,,,,Rua M 1300,Vila
+CDA-017,12345678901,Joao da Silva,IPTU,2500.00,0,0,2023-11-05,ativo,11999990001,11999990001,joao@example.com,1122220001,Rua A 100,Centro
+CDA-018,12345678901,Joao da Silva,TAXAS,800.00,0,0,2024-01-10,ativo,11999990001,11999990001,joao@example.com,1122220001,Rua A 100,Centro
+CDA-019,12345678901,Joao da Silva,ISS,1200.00,0,0,2024-06-10,ativo,11999990001,11999990001,joao@example.com,1122220001,Rua A 100,Centro
+CDA-020,11122233344,Patricia Nunes,IPTU,9999999.00,0,0,2024-07-01,ativo,11988880020,11988880020,patricia@example.com,1133330020,Av N 1400,Alto
+CDA-021,10111213141,Diego Morais,IPTU,1800.00,0,0,2025-09-01,ativo,,11977770021,,,,
+CDA-022,15161718191,Camila Pires,ISS,4200.00,0,0,2024-12-01,inativo,,,,,,
+CDA-023,20212223242,Henrique Melo,IPTU,600.00,0,0,2025-07-15,ativo,,,henrique@example.com,,,
+CDA-024,25262728291,Eduarda Ramos,COSIP,150.00,0,0,2025-08-01,ativo,,,,1122220024,Rua O 1500,Vila
+CDA-025,30313233343,Gabriel Teixeira,IPTU,12000.00,0,0,2021-04-15,ativo,,,,,,

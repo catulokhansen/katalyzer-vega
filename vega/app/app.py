@@ -1,13 +1,14 @@
 """Katalyzer Vega — entrypoint Dash.
 
-Sobe na porta 8050 com sidebar vazia e 7 tabs sem conteúdo.
-Conteúdo de cada aba será carregado via lazy callbacks (vega/app/tabs/).
+Sobe na porta 8050 com sidebar e 7 tabs. Conteúdo carregado via lazy
+callback único que roteia para o módulo da aba ativa.
 """
 from __future__ import annotations
 
 import os
 
-from dash import Dash, dcc, html
+from dash import Dash, Input, Output, State, dcc, html
+from dash.exceptions import PreventUpdate
 
 try:
     from dotenv import load_dotenv
@@ -15,6 +16,8 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+from vega.app.tabs import tab_diagnostico
 
 
 TABS = [
@@ -87,6 +90,29 @@ def _layout() -> html.Div:
 def create_app() -> Dash:
     app = Dash(__name__, title="Katalyzer Vega", suppress_callback_exceptions=True)
     app.layout = _layout()
+
+    # Roteamento lazy: carrega conteúdo da aba quando ela é ativada
+    @app.callback(
+        Output("conteudo-aba", "children"),
+        Input("tabs-principal", "value"),
+        State("store-carteira-id", "data"),
+        State("store-sessao-id", "data"),
+    )
+    def render_conteudo_aba(
+        tab: str,
+        carteira_id: int | None,
+        sessao_id: int | None,
+    ) -> html.Div:
+        if tab == "diagnostico":
+            return tab_diagnostico.get_layout(carteira_id, sessao_id)
+        return html.Div(
+            "Aba em construção.",
+            style={"color": "#9ca3af", "padding": 24, "fontSize": 13},
+        )
+
+    # Callbacks internos da Aba 1 (insights, navegação)
+    tab_diagnostico.registrar_callbacks(app)
+
     return app
 
 

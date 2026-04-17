@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Katalyzer Diagnóstico — Workbench v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--delft:#0A2A5F;--delft-light:#1A3A6F;--violet:#7B2CBF;--violet-light:#9B4CDF;--violet-pale:#F0E6FA;--cyan:#00E0FF;--cyan-muted:#00A8BF;--bg:#F4F4F4;--bg-card:#FFFFFF;--text:#1A1A1A;--text-secondary:#6B7280;--text-muted:#9CA3AF;--border:#E5E7EB;--border-light:#F0F0F0;--green:#059669;--green-bg:#D1FAE5;--green-text:#065F46;--red:#DC2626;--red-bg:#FEE2E2;--red-text:#991B1B;--amber:#D97706;--amber-bg:#FEF3C7;--amber-text:#92400E;--blue-bg:#DBEAFE;--blue-text:#1E40AF;--q1:#ECFDF5;--q1-border:#6EE7B7;--q1-text:#065F46;--q2:#EFF6FF;--q2-border:#93C5FD;--q2-text:#1E40AF;--q3:#FFFBEB;--q3-border:#FCD34D;--q3-text:#92400E;--q4:#FEF2F2;--q4-border:#FCA5A5;--q4-text:#991B1B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:272px;background:var(--bg-card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.logo-mark{width:32px;height:32px;position:relative}.logo-mark .tri{position:absolute}
+.logo-mark .tri-1{width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:18px solid var(--delft);top:0;left:6px}
+.logo-mark .tri-2{width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--violet);top:6px;left:0}
+.logo-mark .tri-3{width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--cyan-muted);top:6px;left:16px}
+.logo-text{font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--delft);letter-spacing:1px}
+.logo-sub{font-size:10px;color:var(--violet);font-weight:500;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.file-badge{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg);border-radius:8px;margin:16px 20px 0}
+.file-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+.file-info{min-width:0}.file-name{font-weight:600;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.file-meta{font-size:10px;color:var(--text-secondary)}
+.params{padding:16px 20px;flex:1;overflow-y:auto}
+.param-section{margin-bottom:20px}
+.param-title{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.param-group{margin-bottom:14px}
+.param-label{font-size:11px;color:var(--text-secondary);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.param-value{font-size:12px;font-weight:600;color:var(--violet)}
+.param-slider{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:var(--border);border-radius:2px;outline:none;cursor:pointer}
+.param-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--violet);cursor:pointer;box-shadow:0 1px 4px rgba(123,44,191,.3)}
+.param-select{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:'Poppins',sans-serif;font-size:12px;color:var(--text);background:var(--bg-card);cursor:pointer;outline:none}
+.param-select:focus{border-color:var(--violet)}
+.chip-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.chip{font-size:10px;padding:4px 10px;border-radius:99px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;user-select:none;background:var(--bg-card)}
+.chip.active{background:var(--violet);color:#fff;border-color:var(--violet)}
+.chip:hover:not(.active){border-color:var(--violet);color:var(--violet)}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.config-name{font-family:'Sora',monospace;font-size:11px;color:var(--text-muted);margin-bottom:8px}
+.btn-save{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);font-family:'Poppins';font-size:11px;color:var(--text-secondary);cursor:pointer}
+.btn-save:hover{border-color:var(--violet);color:var(--violet)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:0;overflow-x:auto}
+.tab{padding:8px 14px;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--text)}.tab.active{color:var(--violet);border-bottom-color:var(--violet)}
+.tab .tab-num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:9px;font-weight:600;margin-right:4px;background:var(--bg);color:var(--text-muted)}
+.tab.active .tab-num{background:var(--violet-pale);color:var(--violet)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.pipeline-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--green);white-space:nowrap}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* Indicador de confiança */
+.confidence-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--amber-bg);border:1px solid #FCD34D;border-radius:99px;font-size:10px;font-weight:600;color:var(--amber-text);cursor:pointer;white-space:nowrap;position:relative}
+.confidence-badge:hover .confidence-tooltip{display:block}
+.confidence-tooltip{display:none;position:absolute;top:calc(100% + 8px);right:0;width:260px;background:var(--delft);color:#fff;font-size:11px;padding:12px 14px;border-radius:8px;line-height:1.6;z-index:100;font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.confidence-tooltip::before{content:'';position:absolute;top:-5px;right:12px;width:10px;height:10px;background:var(--delft);transform:rotate(45deg)}
+.content{flex:1;overflow-y:auto;padding:20px 24px 100px}
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric{background:var(--bg-card);border-radius:10px;padding:16px 18px;border:1px solid var(--border-light);position:relative;overflow:hidden}
+.metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.metric.m-bruta::before{background:var(--delft)}.metric.m-morto::before{background:var(--red)}.metric.m-ativa::before{background:var(--green)}.metric.m-recup::before{background:var(--violet)}
+.metric-label{font-size:11px;color:var(--text-muted);font-weight:500;margin-bottom:6px}
+.metric-value{font-family:'Sora',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.5px}
+.metric.m-bruta .metric-value{color:var(--delft)}.metric.m-morto .metric-value{color:var(--red)}.metric.m-ativa .metric-value{color:var(--green)}.metric.m-recup .metric-value{color:var(--violet)}
+.metric-sub{font-size:11px;margin-top:4px;display:flex;align-items:center;gap:4px}
+.metric-sub.neg{color:var(--red-text)}.metric-sub.pos{color:var(--green-text)}.metric-sub.neutral{color:var(--text-muted)}
+.metric-sub2{font-size:10px;color:var(--text-muted);margin-top:2px}
+.arrow-up::before{content:'↑';font-size:12px}.arrow-down::before{content:'↓';font-size:12px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.chart-card{background:var(--bg-card);border-radius:10px;padding:16px 18px;border:1px solid var(--border-light)}
+.chart-card.full{grid-column:1/-1}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.chart-title{font-size:13px;font-weight:600;color:var(--text)}.chart-subtitle{font-size:10px;color:var(--text-muted)}
+.chart-container{position:relative;width:100%}
+.matrix-wrapper{display:grid;grid-template-columns:40px 1fr 1fr;grid-template-rows:auto auto auto;gap:0}
+.matrix-corner{background:transparent}
+.matrix-col-header{text-align:center;font-size:10px;font-weight:600;color:var(--delft);padding:6px 4px;background:var(--bg);border-radius:6px 6px 0 0}
+.matrix-row-header{writing-mode:vertical-lr;transform:rotate(180deg);text-align:center;font-size:10px;font-weight:600;color:var(--delft);padding:4px 6px;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.q-cell{padding:14px;border-radius:8px;margin:3px}
+.q-cell h4{font-size:11px;font-weight:600;margin-bottom:6px}
+.q-cell .q-val{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;margin-bottom:2px}
+.q-cell .q-count{font-size:10px;font-weight:500}.q-cell .q-pct{font-size:10px;opacity:.7}
+.q1{background:var(--q1);border:1px solid var(--q1-border)}.q1 h4,.q1 .q-val,.q1 .q-count,.q1 .q-pct{color:var(--q1-text)}
+.q2{background:var(--q2);border:1px solid var(--q2-border)}.q2 h4,.q2 .q-val,.q2 .q-count,.q2 .q-pct{color:var(--q2-text)}
+.q3{background:var(--q3);border:1px solid var(--q3-border)}.q3 h4,.q3 .q-val,.q3 .q-count,.q3 .q-pct{color:var(--q3-text)}
+.q4{background:var(--q4);border:1px solid var(--q4-border)}.q4 h4,.q4 .q-val,.q4 .q-count,.q4 .q-pct{color:var(--q4-text)}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead th{text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:2px solid var(--border)}
+.data-table thead th.right{text-align:right}
+.data-table tbody td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text)}
+.data-table tbody td.right{text-align:right;font-family:'Sora',sans-serif;font-weight:500}
+.data-table tbody td.name{font-weight:600}
+.data-table tbody tr:hover{background:var(--bg)}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600}
+.badge-q1{background:var(--q1);color:var(--q1-text)}.badge-q2{background:var(--q2);color:var(--q2-text)}.badge-q3{background:var(--q3);color:var(--q3-text)}.badge-q4{background:var(--q4);color:var(--q4-text)}
+.badge-green{background:var(--green-bg);color:var(--green-text)}.badge-red{background:var(--red-bg);color:var(--red-text)}.badge-amber{background:var(--amber-bg);color:var(--amber-text)}.badge-blue{background:var(--blue-bg);color:var(--blue-text)}
+/* Badges de densidade */
+.badge-concentrado{background:#D1FAE5;color:#065F46}.badge-medio{background:#FEF3C7;color:#92400E}.badge-pulverizado{background:var(--violet-pale);color:var(--violet)}
+.insight-box{display:flex;gap:12px;padding:14px 16px;background:var(--violet-pale);border-radius:8px;border-left:4px solid var(--violet);margin-bottom:12px}
+.insight-icon{font-size:18px;flex-shrink:0;line-height:1}
+.insight-text{font-size:12px;color:var(--delft);line-height:1.6}.insight-text strong{color:var(--violet)}
+.help-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;font-family:'Sora',sans-serif;line-height:1}
+.help-btn:hover{border-color:var(--violet);color:var(--violet);background:var(--violet-pale)}
+.help-btn.open{background:var(--violet);color:#fff;border-color:var(--violet)}
+.help-panel{display:none;margin:0 -18px;padding:14px 18px;background:linear-gradient(135deg,#F8F6FF 0%,#F0E6FA 100%);border-top:1px solid rgba(123,44,191,.15);border-bottom:1px solid rgba(123,44,191,.15);font-size:12px;line-height:1.7;color:var(--delft)}
+.help-panel.open{display:block}
+.help-panel .help-title{font-size:11px;font-weight:600;color:var(--violet);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.help-section{margin-bottom:8px}
+.help-section b{color:var(--violet);font-weight:600}
+.help-what{color:var(--text)}.help-read{color:var(--delft)}.help-action{color:var(--green-text);background:var(--green-bg);padding:8px 10px;border-radius:6px;margin-top:6px;font-size:11px;line-height:1.6}
+.insight-gen{margin-bottom:12px}
+.btn-insight{display:flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,var(--delft) 0%,var(--violet) 100%);color:#fff;border:none;border-radius:10px;font-family:'Poppins';font-size:13px;font-weight:500;cursor:pointer;transition:all .25s;width:100%;justify-content:center;letter-spacing:.3px}
+.btn-insight:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(123,44,191,.35)}
+.btn-insight:active{transform:translateY(0)}
+.btn-insight-icon{font-size:16px}
+.btn-insight.loading{pointer-events:none;opacity:.7}
+.btn-insight.loading .btn-insight-icon{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.btn-insight.done{background:var(--bg);color:var(--text-secondary);border:1px solid var(--border);font-size:12px;padding:8px 16px;justify-content:flex-start}
+.insight-result{margin-top:0;display:none}
+.insight-result.show{display:block;margin-top:12px}
+.insight-card{background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;overflow:hidden;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.insight-card-header{display:flex;align-items:center;gap:8px;padding:14px 18px;background:linear-gradient(135deg,rgba(10,42,95,.04) 0%,rgba(123,44,191,.06) 100%);border-bottom:1px solid var(--border-light);font-size:12px;font-weight:600;color:var(--delft)}
+.insight-card-header .ic-badge{font-size:10px;padding:3px 8px;border-radius:99px;background:var(--violet-pale);color:var(--violet);font-weight:600;margin-left:auto}
+.insight-items{padding:6px 0}
+.insight-item{display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border-light);transition:background .15s}
+.insight-item:last-child{border-bottom:none}
+.insight-item:hover{background:rgba(123,44,191,.02)}
+.ii-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
+.ii-icon.ii-alert{background:var(--red-bg)}.ii-icon.ii-opp{background:var(--green-bg)}.ii-icon.ii-cross{background:var(--violet-pale)}.ii-icon.ii-action{background:var(--blue-bg)}
+.ii-body{flex:1;min-width:0}
+.ii-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.ii-desc{font-size:11px;color:var(--text-secondary);line-height:1.6}
+.ii-desc b{color:var(--violet);font-weight:600}
+.ii-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.ii-tag{font-size:9px;padding:2px 7px;border-radius:99px;background:var(--bg);color:var(--text-muted);font-weight:500;border:1px solid var(--border-light)}
+.action-bar{position:fixed;bottom:0;right:0;left:272px;background:var(--bg-card);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;z-index:10}
+.action-left{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-secondary)}
+.action-btns{display:flex;gap:8px}
+.btn{padding:9px 18px;border-radius:7px;font-family:'Poppins';font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-secondary)}.btn-ghost:hover{border-color:var(--text-secondary);color:var(--text)}
+.btn-secondary{background:var(--bg);border:1px solid var(--border);color:var(--text)}.btn-secondary:hover{background:var(--border-light)}
+.btn-primary{background:var(--violet);color:#fff;box-shadow:0 2px 8px rgba(123,44,191,.25)}.btn-primary:hover{background:var(--violet-light)}
+.tab-content{display:none}.tab-content.active{display:block}
+.scenario-grid{display:grid;grid-template-columns:200px repeat(3,1fr);gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.sc-header{background:var(--delft);color:#fff;padding:12px 14px;font-size:12px;font-weight:600}.sc-header.empty{background:var(--bg)}
+.sc-label{background:var(--bg);padding:10px 14px;font-size:12px;font-weight:500;color:var(--text);border-bottom:1px solid var(--border-light)}
+.sc-val{padding:10px 14px;font-size:13px;text-align:center;border-bottom:1px solid var(--border-light);background:var(--bg-card);font-family:'Sora',sans-serif;font-weight:500}
+.sc-val.highlight{background:var(--q1);color:var(--q1-text);font-weight:700}
+.seg-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seg-table thead th{background:var(--delft);color:#fff;padding:10px 14px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:left}
+.seg-table thead th.right{text-align:right}
+.seg-table tbody td{padding:10px 14px;border-bottom:1px solid var(--border-light)}
+.seg-table tbody td.right{text-align:right;font-family:'Sora',sans-serif;font-weight:500}
+.seg-table tbody tr:last-child td{border-bottom:none}.seg-table tbody tr:hover{background:var(--bg)}
+.seg-table tfoot td{background:var(--bg);padding:10px 14px;font-weight:600;border-top:2px solid var(--border)}
+.seg-table tfoot td.right{text-align:right;font-family:'Sora',sans-serif}
+.contact-bar{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.contact-bar-label{font-size:11px;color:var(--text-secondary);width:90px;text-align:right;flex-shrink:0}
+.contact-bar-track{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden;position:relative}
+.contact-bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:600;color:#fff;min-width:30px}
+.heatmap-grid{display:grid;grid-template-columns:120px repeat(6,1fr);gap:2px;font-size:11px}
+.hm-header{font-weight:600;font-size:10px;color:var(--text-muted);text-transform:uppercase;padding:6px 8px;text-align:center}
+.hm-row-label{font-weight:500;padding:8px;display:flex;align-items:center;color:var(--text)}
+.hm-cell{padding:8px;text-align:center;border-radius:4px;font-family:'Sora',sans-serif;font-weight:600;font-size:12px}
+.ring-row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.ring-item{text-align:center}
+.ring-label{font-size:11px;color:var(--text-secondary);margin-top:6px}
+.ring-value{font-family:'Sora',sans-serif;font-size:14px;font-weight:700;margin-top:2px}
+/* Q1 empty warning */
+.q1-empty-warn{background:var(--amber-bg);border:1px solid #FCD34D;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--amber-text);display:none;margin-bottom:8px}
+.q1-empty-warn.show{display:block}
+/* Threshold sliders section */
+.threshold-section{background:var(--bg);border-radius:8px;padding:12px 16px;margin-bottom:12px;border:1px solid var(--border)}
+.threshold-title{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.threshold-row{display:flex;gap:16px}
+.threshold-group{flex:1}
+/* Next-best-action styles */
+.nba-cell{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--violet-pale);color:var(--violet);font-weight:500;white-space:nowrap}
+/* Density legend */
+.density-legend{display:flex;gap:12px;padding:10px 12px;background:var(--bg);border-radius:6px;margin-top:8px;font-size:11px}
+.density-legend-item{display:flex;align-items:center;gap:5px}
+/* Export button */
+.btn-export-csv{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);font-family:'Poppins';font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all .15s}
+.btn-export-csv:hover{border-color:var(--violet);color:var(--violet)}
+/* Confidence footer card */
+.confidence-footer{background:linear-gradient(135deg,rgba(10,42,95,.04),rgba(123,44,191,.06));border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-top:12px}
+.confidence-footer-title{font-size:12px;font-weight:600;color:var(--delft);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.confidence-footer-body{font-size:11px;color:var(--text-secondary);line-height:1.7}
+.cf-link{color:var(--violet);font-weight:600;cursor:pointer;text-decoration:underline}
+/* Interrupção flags */
+.flag-interrompida{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;background:repeating-linear-gradient(45deg,#D1FAE5,#D1FAE5 3px,#A7F3D0 3px,#A7F3D0 6px);color:#065F46;border:1px solid #6EE7B7}
+/* Metric dual value */
+.metric-dual{display:flex;gap:10px;margin-top:6px}
+.metric-dual-item{flex:1;background:var(--bg);border-radius:6px;padding:6px 8px}
+.metric-dual-label{font-size:9px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.metric-dual-val{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--red)}
+.metric-dual-val.pos{color:var(--green)}
+/* Breakeven marker */
+.be-label{font-size:10px;font-weight:600;color:var(--violet)}
+/* v4: NBA sugestão */
+.nba-cell-warn{font-size:10px;padding:2px 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:500;white-space:nowrap;border:1px solid #FCD34D}
+.nba-warn-icon{font-size:9px;margin-right:2px}
+.nba-note{font-size:10px;color:var(--text-muted);padding:8px 12px;background:var(--bg);border-radius:6px;margin-top:6px;line-height:1.6;border-left:3px solid #FCD34D}
+/* v4: concentração de risco */
+.risk-alert{background:var(--amber-bg);border:1px solid #FCD34D;border-radius:8px;padding:12px 16px;margin-top:8px;display:flex;align-items:flex-start;gap:12px}
+.risk-alert-icon{font-size:18px;flex-shrink:0}
+.risk-alert-body{flex:1}
+.risk-alert-title{font-size:12px;font-weight:600;color:var(--amber-text);margin-bottom:4px}
+.risk-alert-desc{font-size:11px;color:var(--amber-text);line-height:1.6}
+.risk-alert-btn{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:5px 12px;border-radius:6px;border:1px solid var(--amber);background:transparent;font-size:11px;font-weight:500;color:var(--amber-text);cursor:pointer}
+.risk-alert-btn:hover{background:rgba(217,119,6,.1)}
+/* v4: decay warning */
+.decay-warn{background:var(--amber-bg);border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--amber-text);line-height:1.6;display:flex;gap:8px;align-items:flex-start}
+/* v4: métricas fluxo (3 cols) */
+.metrics-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+/* v4: cohort table */
+.cohort-table{width:100%;border-collapse:collapse;font-size:11px}
+.cohort-table thead th{text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:2px solid var(--border)}
+.cohort-table thead th.right{text-align:right}
+.cohort-table tbody td{padding:9px 10px;border-bottom:1px solid var(--border-light)}
+.cohort-table tbody td.right{text-align:right;font-family:'Sora',sans-serif}
+.cohort-table tbody tr:hover{background:var(--bg)}
+/* v4: funil decomposed legend */
+.funil-legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.funil-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-secondary)}
+.funil-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-mark"><div class="tri tri-1"></div><div class="tri tri-2"></div><div class="tri tri-3"></div></div>
+      <div><div class="logo-text">KATALYZER</div><div class="logo-sub">diagnóstico</div></div>
+    </div>
+  </div>
+  <div class="file-badge"><div class="file-dot"></div><div class="file-info"><div class="file-name">carteira_beberibe_2026.csv</div><div class="file-meta">8.183 CDAs · 8.565 contribuintes</div></div></div>
+  <div class="params">
+    <div class="param-section">
+      <div class="param-title">Higienização</div>
+      <div class="param-group"><div class="param-label"><span>Valor mínimo</span><span class="param-value" id="d-vmin">R$ 50</span></div><input type="range" class="param-slider" min="10" max="500" value="50" step="10" oninput="document.getElementById('d-vmin').textContent='R$ '+this.value"></div>
+      <div class="param-group"><div class="param-label"><span>Prescrição</span><span class="param-value" id="d-presc">5 anos</span></div><input type="range" class="param-slider" min="3" max="10" value="5" oninput="document.getElementById('d-presc').textContent=this.value+' anos'"></div>
+      <div class="param-group"><div class="param-label"><span>Faixas de valor</span></div><select class="param-select"><option>Padrão (5 faixas)</option><option>Personalizado</option><option>Por decil</option></select></div>
+    </div>
+    <div class="param-section">
+      <div class="param-title">Tributos</div>
+      <div class="chip-row"><span class="chip active" onclick="this.classList.toggle('active')">IPTU</span><span class="chip active" onclick="this.classList.toggle('active')">ISS</span><span class="chip active" onclick="this.classList.toggle('active')">ITBI</span><span class="chip active" onclick="this.classList.toggle('active')">Taxas</span><span class="chip" onclick="this.classList.toggle('active')">Multas</span><span class="chip" onclick="this.classList.toggle('active')">COSIP</span></div>
+    </div>
+    <div class="param-section">
+      <div class="param-title">Scoring</div>
+      <div class="param-group"><div class="param-label"><span>Modelo</span><span class="param-value">Score v1</span></div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">Determinístico · 4 dimensões</div></div>
+      <div class="param-group"><div class="param-label"><span>Peso dim_valor</span><span class="param-value" id="d-wv">30 pts</span></div><input type="range" class="param-slider" min="10" max="40" value="30" step="5" oninput="document.getElementById('d-wv').textContent=this.value+' pts'"></div>
+      <div class="param-group"><div class="param-label"><span>Peso dim_urgencia</span><span class="param-value" id="d-wu">30 pts</span></div><input type="range" class="param-slider" min="10" max="40" value="30" step="5" oninput="document.getElementById('d-wu').textContent=this.value+' pts'"></div>
+    </div>
+    <!-- Thresholds Q1 — Correção 2 -->
+    <div class="param-section">
+      <div class="param-title">Thresholds Quadrante Q1</div>
+      <div class="param-group"><div class="param-label"><span>Score Prioridade mín.</span><span class="param-value" id="d-tpri">40 pts</span></div><input type="range" class="param-slider" min="20" max="60" value="40" step="5" oninput="document.getElementById('d-tpri').textContent=this.value+' pts';checkQ1Empty()"></div>
+      <div class="param-group"><div class="param-label"><span>Score Recuperab. mín.</span><span class="param-value" id="d-trec">30 pts</span></div><input type="range" class="param-slider" min="10" max="50" value="30" step="5" oninput="document.getElementById('d-trec').textContent=this.value+' pts';checkQ1Empty()"></div>
+    </div>
+    <div class="param-section">
+      <div class="param-title">Cenários</div>
+      <div class="param-group"><div class="param-label"><span>Benchmarks</span></div><select class="param-select"><option>Conservador</option><option selected>Moderado</option><option>Agressivo</option></select></div>
+    </div>
+  </div>
+  <div class="sidebar-footer"><div class="config-name">beberibe.yaml</div><button class="btn-save">Salvar parâmetros</button></div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(0)"><span class="tab-num">1</span>Diagnóstico</div>
+      <div class="tab" onclick="switchTab(1)"><span class="tab-num">2</span>Segmentação</div>
+      <div class="tab" onclick="switchTab(2)"><span class="tab-num">3</span>Scoring</div>
+      <div class="tab" onclick="switchTab(3)"><span class="tab-num">4</span>Safra & Aging</div>
+      <div class="tab" onclick="switchTab(4)"><span class="tab-num">5</span>Contactabilidade</div>
+      <div class="tab" onclick="switchTab(5)"><span class="tab-num">6</span>Histórico</div>
+      <div class="tab" onclick="switchTab(6)"><span class="tab-num">7</span>Cenários</div>
+    </div>
+    <div class="topbar-right">
+      <div class="pipeline-status"><div class="pulse"></div>Pipeline concluído · 3,1s</div>
+      <!-- Correção 8: badge de confiança -->
+      <div class="confidence-badge" style="cursor:default">
+        ◈ Score v1 · Determinístico
+        <div class="confidence-tooltip">Modelo ativo: 4 dimensões (dim_valor, dim_urgencia, dim_contato, dim_comportamento). Thresholds absolutos configuráveis.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- TAB 1: DIAGNÓSTICO -->
+    <div class="tab-content active" id="tab-0">
+      <div class="metrics-row">
+        <div class="metric m-bruta"><div class="metric-label">Carteira bruta</div><div class="metric-value">R$ 44,3M</div><div class="metric-sub neutral">8.183 CDAs · 8.565 contribuintes</div></div>
+        <div class="metric m-morto"><div class="metric-label">Estoque morto</div><div class="metric-value">R$ 14,8M</div><div class="metric-sub neg"><span class="arrow-down"></span> 33,4% eliminado</div></div>
+        <div class="metric m-ativa"><div class="metric-label">Carteira ativa</div><div class="metric-value">R$ 29,5M</div><div class="metric-sub pos"><span class="arrow-up"></span> 5.447 CDAs</div></div>
+        <div class="metric m-recup"><div class="metric-label">Recuperável estimado</div><div class="metric-value">R$ 8,2M</div><div class="metric-sub pos">ROI projetado 4,1:1</div></div>
+      </div>
+      <div class="insight-gen" id="ig-0"><button class="btn-insight" onclick="genInsight(0)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Composição por tributo</div><div class="chart-subtitle">Carteira ativa · R$ 29,5M</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-tributo"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Funil de higienização</div><div class="chart-subtitle">Estoque morto decomposto por causa de eliminação</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-funil"></canvas></div>
+          <div class="funil-legend"><div class="funil-legend-item"><div class="funil-dot" style="background:#991B1B"></div>Prescrição R$ 10,2M (69%)</div><div class="funil-legend-item"><div class="funil-dot" style="background:#DC2626"></div>Valor irrisório R$ 2,1M (14%)</div><div class="funil-legend-item"><div class="funil-dot" style="background:#F97316"></div>Devedor inexistente R$ 2,5M (17%)</div></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Concentração Pareto</div><div class="chart-subtitle">Top 10% = 65% do valor</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-pareto"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Valor × idade por tributo</div><div class="chart-subtitle">Empilhado por faixa etária</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-idade"></canvas></div></div>
+      </div>
+      <!-- Top contribuintes com Densidade + Next-Best-Action — Correções 3 e 6 -->
+      <div class="chart-card full" style="margin-bottom:12px">
+        <div class="chart-header">
+          <div><div class="chart-title">Top contribuintes por valor</div><div class="chart-subtitle">Carteira ativa · visão consolidada</div></div>
+          <button class="btn-export-csv" onclick="exportCSV()">⬇ Exportar lista de ações (CSV)</button>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>#</th><th>Contribuinte</th><th>Tipo</th>
+            <th class="right">CDAs</th><th class="right">Valor</th>
+            <th class="right">Densidade</th><th>Padrão</th>
+            <th>Quadrante</th><th class="right">Score</th>
+            <th title="Derivado de: quadrante + contactabilidade + reincidência + valor. Não substitui o julgamento do analista — avalie o contexto antes de executar.">Ação Sugerida ⚠</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="name">Construtora Litoral Norte Ltda</td><td>PJ</td><td class="right">47</td><td class="right">R$ 3.200.000</td><td class="right">R$ 68.085</td><td><span class="badge badge-pulverizado">Pulverizado</span></td><td><span class="badge badge-q1">Q1</span></td><td class="right">94</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>Negociação direta + acordo global</span></td></tr>
+            <tr><td>2</td><td class="name">Rede Farma Beberibe ME</td><td>PJ</td><td class="right">23</td><td class="right">R$ 892.114</td><td class="right">R$ 38.788</td><td><span class="badge badge-medio">Médio</span></td><td><span class="badge badge-q1">Q1</span></td><td class="right">91</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>WhatsApp à tarde + parcelamento 6x</span></td></tr>
+            <tr><td>3</td><td class="name">José M. Santos</td><td>PF</td><td class="right">12</td><td class="right">R$ 534.210</td><td class="right">R$ 44.518</td><td><span class="badge badge-medio">Médio</span></td><td><span class="badge badge-q1">Q1</span></td><td class="right">87</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>WhatsApp + parcelamento 6x</span></td></tr>
+            <tr><td>4</td><td class="name">Pousada Morro Branco Hotelaria</td><td>PJ</td><td class="right">31</td><td class="right">R$ 478.933</td><td class="right">R$ 15.449</td><td><span class="badge badge-pulverizado">Pulverizado</span></td><td><span class="badge badge-q3">Q3</span></td><td class="right">62</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>Protesto em cartório</span></td></tr>
+            <tr><td>5</td><td class="name">Maria F. Oliveira</td><td>PF</td><td class="right">8</td><td class="right">R$ 312.770</td><td class="right">R$ 39.096</td><td><span class="badge badge-medio">Médio</span></td><td><span class="badge badge-q2">Q2</span></td><td class="right">73</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>Campanha WhatsApp · tarde</span></td></tr>
+            <tr><td>6</td><td class="name">Auto Posto São João Ltda</td><td>PJ</td><td class="right">3</td><td class="right">R$ 287.440</td><td class="right">R$ 95.813</td><td><span class="badge badge-concentrado">Concentrado</span></td><td><span class="badge badge-q1">Q1</span></td><td class="right">89</td><td><span class="nba-cell-warn"><span class="nba-warn-icon">!</span>Negociação individual presencial</span></td></tr>
+          </tbody>
+        </table>
+        <div class="density-legend">
+          <strong style="font-size:10px;color:var(--text-muted)">Padrão:</strong>
+          <div class="density-legend-item"><span class="badge badge-concentrado">Concentrado</span><span style="font-size:10px;color:var(--text-secondary)">1–3 CDAs → negociação individual</span></div>
+          <div class="density-legend-item"><span class="badge badge-medio">Médio</span><span style="font-size:10px;color:var(--text-secondary)">4–9 CDAs → campanha segmentada</span></div>
+          <div class="density-legend-item"><span class="badge badge-pulverizado">Pulverizado</span><span style="font-size:10px;color:var(--text-secondary)">10+ CDAs → acordo global preferível</span></div>
+        </div>
+        <div class="nba-note">⚠ Sugestões derivadas de regras determinísticas (quadrante + contactabilidade + reincidência + valor) — avalie o contexto antes de executar. Override registrável na operação.</div>
+        <!-- F2: Concentração de risco -->
+        <div class="risk-alert">
+          <div class="risk-alert-icon">⚠</div>
+          <div class="risk-alert-body">
+            <div class="risk-alert-title">Risco de concentração detectado</div>
+            <div class="risk-alert-desc">Construtora Litoral Norte Ltda representa <strong>10,8% da carteira ativa</strong> (R$ 3,2M de R$ 29,5M). Os cenários de recuperação devem ser calculados com e sem este contribuinte. Uma única negociação altera materialmente qualquer projeção agregada.</div>
+            <button class="risk-alert-btn" onclick="switchTab(6)">Ver impacto nos cenários →</button>
+          </div>
+        </div>
+      </div>
+      <!-- F1: Velocidade de entrada na carteira -->
+      <div class="metrics-row-3" style="margin-top:12px">
+        <div class="metric" style="border-top:3px solid var(--delft)"><div class="metric-label">Novas CDAs (últimos 12m)</div><div class="metric-value" style="color:var(--delft)">1.247</div><div class="metric-sub neutral">média 104/mês</div></div>
+        <div class="metric" style="border-top:3px solid var(--green)"><div class="metric-label">Recuperadas (últimos 12m)</div><div class="metric-value" style="color:var(--green)">823</div><div class="metric-sub pos">média 69/mês</div></div>
+        <div class="metric" style="border-top:3px solid var(--red)"><div class="metric-label">Saldo líquido mensal</div><div class="metric-value" style="color:var(--red)">+35 CDAs/mês</div><div class="metric-sub neg">carteira crescendo</div></div>
+      </div>
+      <div class="chart-card full" style="margin-bottom:12px">
+        <div class="chart-header"><div><div class="chart-title">Fluxo de entrada vs recuperação</div><div class="chart-subtitle">CDAs inscritas × recuperadas · últimos 12 meses</div></div></div>
+        <div class="chart-container" style="height:200px"><canvas id="c-fluxo"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: SEGMENTAÇÃO -->
+    <div class="tab-content" id="tab-1">
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Distribuição por faixa de valor</div><div class="chart-subtitle">Visão contribuinte</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-faixa"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">PF vs PJ</div><div class="chart-subtitle">Valor e quantidade</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-pfpj"></canvas></div></div>
+      </div>
+      <div class="chart-card full" style="margin-bottom:12px"><div class="chart-header"><div><div class="chart-title">Matriz de segmentos</div><div class="chart-subtitle">Tributo × faixa de valor · R$ milhões</div></div></div>
+        <table class="seg-table"><thead><tr><th>Tributo</th><th class="right">Até R$ 500</th><th class="right">R$ 500–2k</th><th class="right">R$ 2k–10k</th><th class="right">R$ 10k–50k</th><th class="right">> R$ 50k</th><th class="right">Total</th></tr></thead>
+        <tbody>
+          <tr><td><strong>IPTU</strong></td><td class="right">0,3M</td><td class="right">1,1M</td><td class="right">4,2M</td><td class="right">5,8M</td><td class="right">2,1M</td><td class="right"><strong>13,5M</strong></td></tr>
+          <tr><td><strong>ISS</strong></td><td class="right">0,1M</td><td class="right">0,6M</td><td class="right">2,8M</td><td class="right">3,4M</td><td class="right">1,8M</td><td class="right"><strong>8,7M</strong></td></tr>
+          <tr><td><strong>ITBI</strong></td><td class="right">0,0M</td><td class="right">0,2M</td><td class="right">1,1M</td><td class="right">0,9M</td><td class="right">0,3M</td><td class="right"><strong>2,5M</strong></td></tr>
+          <tr><td><strong>Taxas</strong></td><td class="right">0,5M</td><td class="right">1,3M</td><td class="right">1,8M</td><td class="right">0,8M</td><td class="right">0,1M</td><td class="right"><strong>4,5M</strong></td></tr>
+        </tbody>
+        <tfoot><tr><td><strong>Total</strong></td><td class="right">1,0M</td><td class="right">3,3M</td><td class="right">10,0M</td><td class="right">10,9M</td><td class="right">4,3M</td><td class="right"><strong>29,5M</strong></td></tr></tfoot></table>
+      </div>
+      <div class="insight-gen" id="ig-1"><button class="btn-insight" onclick="genInsight(1)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+    </div>
+
+    <!-- TAB 3: SCORING -->
+    <div class="tab-content" id="tab-2">
+      <!-- Warning Q1 vazio — Correção 2 -->
+      <div class="q1-empty-warn" id="q1-empty-warn">⚠ Nenhum contribuinte atinge os critérios de Q1 com os thresholds atuais — ajuste os sliders na sidebar ou considere enriquecimento cadastral para elevar os scores.</div>
+      <div class="chart-card full" style="margin-bottom:12px">
+        <div class="chart-header"><div><div class="chart-title">Matriz de ação 2×2</div><div class="chart-subtitle">Thresholds absolutos · Prioridade ≥ 40 · Recuperabilidade ≥ 30</div></div></div>
+        <div class="matrix-wrapper">
+          <div class="matrix-corner"></div><div class="matrix-col-header">Alta prioridade (≥ 40)</div><div class="matrix-col-header">Baixa prioridade (< 40)</div>
+          <div class="matrix-row-header">Alta recuperab. (≥ 30)</div>
+          <div class="q-cell q1"><h4>Q1 — Ação imediata</h4><div class="q-val">R$ 12,4M</div><div class="q-count">847 contrib. · 1.923 CDAs</div><div class="q-pct">42% do valor</div></div>
+          <div class="q-cell q2"><h4>Q2 — Campanha de massa</h4><div class="q-val">R$ 8,7M</div><div class="q-count">2.134 contrib. · 1.648 CDAs</div><div class="q-pct">29% do valor</div></div>
+          <div class="matrix-row-header">Baixa recuperab. (< 30)</div>
+          <div class="q-cell q3"><h4>Q3 — Protesto / Judicial</h4><div class="q-val">R$ 5,9M</div><div class="q-count">312 contrib. · 1.102 CDAs</div><div class="q-pct">20% do valor</div></div>
+          <div class="q-cell q4"><h4>Q4 — Monitorar</h4><div class="q-val">R$ 2,5M</div><div class="q-count">1.891 contrib. · 774 CDAs</div><div class="q-pct">9% do valor</div></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Score: Prioridade (0–60)</div></div></div><div class="chart-container" style="height:200px"><canvas id="c-spri"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Score: Recuperabilidade (0–50)</div></div></div><div class="chart-container" style="height:200px"><canvas id="c-srec"></canvas></div></div>
+      </div>
+      <div class="insight-gen" id="ig-2"><button class="btn-insight" onclick="genInsight(2)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+      <!-- Confidence footer — Correção 8 -->
+      <div class="confidence-footer">
+        <div class="confidence-footer-title">◈ Score v1 · Modelo Determinístico</div>
+        <div class="confidence-footer-body">4 dimensões: <b>dim_valor</b> (peso do título), <b>dim_urgencia</b> (proximidade da prescrição, função monotônica crescente), <b>dim_contato</b> (qualidade dos dados cadastrais) e <b>dim_comportamento</b> (histórico de pagamento e parcelamento). Eixo Prioridade (0–60) + Recuperabilidade (0–50). Thresholds absolutos configuráveis por carteira.<br><br><strong style="color:var(--amber-text)">⚠ Índice ordinal:</strong> o score é um instrumento de priorização e segmentação — não representa probabilidade de pagamento. As dimensões dim_contato e dim_comportamento são correlacionadas e somadas linearmente por design do modelo v1. Use para ordenar e segmentar, não para projetar taxas de conversão individuais.</div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SAFRA & AGING -->
+    <div class="tab-content" id="tab-3">
+      <div class="metrics-row">
+        <div class="metric" style="border-top:3px solid var(--violet)"><div class="metric-label">Safras analisadas</div><div class="metric-value" style="color:var(--violet)">7 anos</div><div class="metric-sub neutral">2019–2025</div></div>
+        <div class="metric" style="border-top:3px solid var(--green)"><div class="metric-label">Melhor safra (recuperação)</div><div class="metric-value" style="color:var(--green)">2024</div><div class="metric-sub pos">Taxa de 23% em 12 meses</div></div>
+        <!-- Correção 5: prescrição bruta × líquida -->
+        <div class="metric" style="border-top:3px solid var(--red)">
+          <div class="metric-label">Prescrevendo em 12 meses</div>
+          <div class="metric-dual">
+            <div class="metric-dual-item"><div class="metric-dual-label">Bruto</div><div class="metric-dual-val">R$ 4,1M</div></div>
+            <div class="metric-dual-item"><div class="metric-dual-label">Líquido</div><div class="metric-dual-val pos">R$ 2,4M</div></div>
+          </div>
+          <div class="metric-sub2" style="margin-top:6px">Líquido desconta interrupções (protestos / parcelamentos)</div>
+        </div>
+        <div class="metric" style="border-top:3px solid var(--amber)"><div class="metric-label">Idade média ponderada</div><div class="metric-value" style="color:var(--amber)">2,8 anos</div><div class="metric-sub neutral">Mediana: 2,3 anos</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Análise de safra (vintage)</div><div class="chart-subtitle">Valor inscrito por ano × taxa de recuperação</div></div></div><div class="chart-container" style="height:260px"><canvas id="c-safra"></canvas></div></div>
+        <!-- Correção 1 + 5: aging com urgência monotônica + barras hachuradas -->
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Curva de envelhecimento (aging)</div><div class="chart-subtitle">Urgência crescente conforme aproxima da prescrição · listrado = prescrição interrompida</div></div></div><div class="chart-container" style="height:260px"><canvas id="c-aging"></canvas></div></div>
+      </div>
+      <div class="chart-card full" style="margin-bottom:12px"><div class="chart-header"><div><div class="chart-title">Decay de recuperação por safra</div><div class="chart-subtitle">Taxa de recuperação acumulada ao longo do tempo desde a inscrição</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-decay"></canvas></div></div>
+      <div class="chart-card full" style="margin-bottom:12px"><div class="chart-header"><div><div class="chart-title">Sazonalidade de inscrição e recuperação</div><div class="chart-subtitle">CDAs inscritas × recuperadas por mês · média histórica</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-sazon"></canvas></div></div>
+      <div class="insight-gen" id="ig-3"><button class="btn-insight" onclick="genInsight(3)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+    </div>
+
+    <!-- TAB 5: CONTACTABILIDADE -->
+    <div class="tab-content" id="tab-4">
+      <div class="metrics-row">
+        <div class="metric" style="border-top:3px solid var(--green)"><div class="metric-label">Contactáveis (digital)</div><div class="metric-value" style="color:var(--green)">58%</div><div class="metric-sub pos">3.158 contribuintes</div></div>
+        <div class="metric" style="border-top:3px solid var(--amber)"><div class="metric-label">Só endereço físico</div><div class="metric-value" style="color:var(--amber)">24%</div><div class="metric-sub neutral">1.307 contribuintes</div></div>
+        <div class="metric" style="border-top:3px solid var(--red)"><div class="metric-label">Incontactáveis</div><div class="metric-value" style="color:var(--red)">18%</div><div class="metric-sub neg">982 contribuintes</div></div>
+        <div class="metric" style="border-top:3px solid var(--violet)"><div class="metric-label">Valor incontactável</div><div class="metric-value" style="color:var(--violet)">R$ 3,8M</div><div class="metric-sub neg">13% da carteira ativa</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-header"><div><div class="chart-title">Cobertura por canal</div><div class="chart-subtitle">% de contribuintes atingíveis por cada canal</div></div></div>
+          <div style="padding:12px 0">
+            <div class="contact-bar"><div class="contact-bar-label">Celular</div><div class="contact-bar-track"><div class="contact-bar-fill" style="width:52%;background:var(--green)">52%</div></div></div>
+            <div class="contact-bar"><div class="contact-bar-label">WhatsApp</div><div class="contact-bar-track"><div class="contact-bar-fill" style="width:48%;background:#25D366">48%</div></div></div>
+            <div class="contact-bar"><div class="contact-bar-label">E-mail</div><div class="contact-bar-track"><div class="contact-bar-fill" style="width:34%;background:var(--violet)">34%</div></div></div>
+            <div class="contact-bar"><div class="contact-bar-label">Telefone fixo</div><div class="contact-bar-track"><div class="contact-bar-fill" style="width:28%;background:var(--delft)">28%</div></div></div>
+            <div class="contact-bar"><div class="contact-bar-label">Endereço</div><div class="contact-bar-track"><div class="contact-bar-fill" style="width:82%;background:var(--amber)">82%</div></div></div>
+          </div>
+        </div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Contactabilidade × faixa de valor</div><div class="chart-subtitle">Onde está o valor incontactável?</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-contact-valor"></canvas></div></div>
+      </div>
+      <div class="chart-card full" style="margin-bottom:12px">
+        <div class="chart-header"><div><div class="chart-title">Mapa de qualidade de dados por canal</div><div class="chart-subtitle">Contribuintes com dados válidos × desatualizados × ausentes</div></div></div>
+        <div class="heatmap-grid">
+          <div class="hm-header"></div><div class="hm-header">Celular</div><div class="hm-header">WhatsApp</div><div class="hm-header">E-mail</div><div class="hm-header">Fixo</div><div class="hm-header">Endereço</div><div class="hm-header">Score</div>
+          <div class="hm-row-label">IPTU</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">61%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">56%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">31%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">34%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">91%</div><div class="hm-cell" style="background:#DBEAFE;color:#1E40AF">72</div>
+          <div class="hm-row-label">ISS</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">58%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">54%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">48%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">22%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">87%</div><div class="hm-cell" style="background:#DBEAFE;color:#1E40AF">68</div>
+          <div class="hm-row-label">ITBI</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">42%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">38%</div><div class="hm-cell" style="background:#FEE2E2;color:#991B1B">19%</div><div class="hm-cell" style="background:#FEE2E2;color:#991B1B">15%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">78%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">48</div>
+          <div class="hm-row-label">Taxas</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">39%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">35%</div><div class="hm-cell" style="background:#FEE2E2;color:#991B1B">22%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">28%</div><div class="hm-cell" style="background:#D1FAE5;color:#065F46">75%</div><div class="hm-cell" style="background:#FEF3C7;color:#92400E">45</div>
+        </div>
+      </div>
+      <div class="insight-gen" id="ig-4"><button class="btn-insight" onclick="genInsight(4)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+    </div>
+
+    <!-- TAB 6: HISTÓRICO -->
+    <div class="tab-content" id="tab-5">
+      <div class="metrics-row">
+        <div class="metric" style="border-top:3px solid var(--violet)"><div class="metric-label">Contribuintes reincidentes</div><div class="metric-value" style="color:var(--violet)">31%</div><div class="metric-sub neutral">1.687 de 5.447</div></div>
+        <div class="metric" style="border-top:3px solid var(--green)"><div class="metric-label">Valor em reincidentes</div><div class="metric-value" style="color:var(--green)">R$ 14,8M</div><div class="metric-sub pos">50% da carteira ativa</div></div>
+        <div class="metric" style="border-top:3px solid var(--amber)"><div class="metric-label">Taxa de quebra (parcel.)</div><div class="metric-value" style="color:var(--amber)">38%</div><div class="metric-sub neg">Média histórica</div></div>
+        <div class="metric" style="border-top:3px solid var(--red)"><div class="metric-label">Parcela média de quebra</div><div class="metric-value" style="color:var(--red)">4ª parcela</div><div class="metric-sub neg">Mediana do abandono</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Reincidência vs primeiro débito</div><div class="chart-subtitle">Valor por tipo de contribuinte</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-reincid"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Curva de sobrevivência do parcelamento</div><div class="chart-subtitle">% de parcelamentos ativos por parcela</div></div></div><div class="chart-container" style="height:240px"><canvas id="c-sobrev"></canvas></div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Histórico de parcelamento por programa</div><div class="chart-subtitle">Adesão e taxa de conclusão</div></div></div>
+          <table class="data-table"><thead><tr><th>Programa</th><th class="right">Adesões</th><th class="right">Concluídos</th><th class="right">Quebrados</th><th class="right">Taxa conclusão</th></tr></thead><tbody>
+            <tr><td class="name">REFIS 2023</td><td class="right">412</td><td class="right">198</td><td class="right">214</td><td class="right"><span class="badge badge-amber">48%</span></td></tr>
+            <tr><td class="name">REFIS 2022</td><td class="right">387</td><td class="right">232</td><td class="right">155</td><td class="right"><span class="badge badge-green">60%</span></td></tr>
+            <tr><td class="name">Campanha IPTU 2024</td><td class="right">298</td><td class="right">189</td><td class="right">109</td><td class="right"><span class="badge badge-green">63%</span></td></tr>
+            <tr><td class="name">Parcelamento Ordinário</td><td class="right">1.204</td><td class="right">542</td><td class="right">662</td><td class="right"><span class="badge badge-red">45%</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Concentração geográfica</div><div class="chart-subtitle">Valor inadimplente por região/bairro</div></div></div>
+          <table class="data-table"><thead><tr><th>Região</th><th class="right">Contribuintes</th><th class="right">Valor</th><th class="right">% Total</th><th class="right">Inadimpl.</th></tr></thead><tbody>
+            <tr><td class="name">Centro</td><td class="right">1.247</td><td class="right">R$ 8,4M</td><td class="right">28%</td><td class="right"><span class="badge badge-amber">34%</span></td></tr>
+            <tr><td class="name">Praia de Morro Branco</td><td class="right">892</td><td class="right">R$ 6,7M</td><td class="right">23%</td><td class="right"><span class="badge badge-red">52%</span></td></tr>
+            <tr><td class="name">Distrito de Sucatinga</td><td class="right">634</td><td class="right">R$ 4,2M</td><td class="right">14%</td><td class="right"><span class="badge badge-red">61%</span></td></tr>
+            <tr><td class="name">Praia das Fontes</td><td class="right">521</td><td class="right">R$ 3,8M</td><td class="right">13%</td><td class="right"><span class="badge badge-amber">45%</span></td></tr>
+            <tr><td class="name">Demais</td><td class="right">1.153</td><td class="right">R$ 6,4M</td><td class="right">22%</td><td class="right"><span class="badge badge-green">28%</span></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="chart-card full" style="margin-bottom:12px">
+        <div class="chart-header"><div><div class="chart-title">Comportamento pós-campanha por cohort</div><div class="chart-subtitle">Contribuintes rastreados após cada programa de parcelamento</div></div></div>
+        <table class="cohort-table">
+          <thead><tr><th>Programa</th><th class="right">Aderiram</th><th class="right">Concluíram</th><th class="right">Quebraram</th><th class="right">Voltaram cart.</th><th class="right">Reabordados c/ sucesso</th><th>Perfil dominante</th></tr></thead>
+          <tbody>
+            <tr><td class="name">REFIS 2023</td><td class="right">412</td><td class="right">198</td><td class="right">214</td><td class="right">167</td><td class="right">54 (32%)</td><td><span class="badge badge-amber">Quebrador crônico</span></td></tr>
+            <tr><td class="name">REFIS 2022</td><td class="right">387</td><td class="right">232</td><td class="right">155</td><td class="right">98</td><td class="right">61 (62%)</td><td><span class="badge badge-green">Reincidente pagador</span></td></tr>
+            <tr><td class="name">Campanha IPTU 2024</td><td class="right">298</td><td class="right">189</td><td class="right">109</td><td class="right">72</td><td class="right">38 (53%)</td><td><span class="badge badge-blue">Primeiro débito</span></td></tr>
+            <tr><td class="name">Parcelamento Ordinário</td><td class="right">1.204</td><td class="right">542</td><td class="right">662</td><td class="right">521</td><td class="right">112 (21%)</td><td><span class="badge badge-amber">Quebrador crônico</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="insight-gen" id="ig-5"><button class="btn-insight" onclick="genInsight(5)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+    </div>
+
+    <!-- TAB 7: CENÁRIOS -->
+    <div class="tab-content" id="tab-6">
+      <div class="chart-card full" style="margin-bottom:12px"><div class="chart-header"><div><div class="chart-title">Projeção de cenários</div><div class="chart-subtitle">Adesão com decay mensal · 12 meses</div></div></div>
+        <div class="scenario-grid">
+          <div class="sc-header empty"></div><div class="sc-header">Conservador</div><div class="sc-header" style="background:var(--violet)">Moderado</div><div class="sc-header">Agressivo</div>
+          <div class="sc-label">Quadrantes</div><div class="sc-val">Q1</div><div class="sc-val">Q1 + Q2</div><div class="sc-val">Q1 + Q2 + Q3</div>
+          <div class="sc-label">Contribuintes-alvo</div><div class="sc-val">847</div><div class="sc-val">2.981</div><div class="sc-val">3.293</div>
+          <div class="sc-label">Valor-alvo</div><div class="sc-val">R$ 12,4M</div><div class="sc-val">R$ 21,1M</div><div class="sc-val">R$ 27,0M</div>
+          <div class="sc-label">Adesão M1 (pico)</div><div class="sc-val">18%</div><div class="sc-val">15%</div><div class="sc-val">14%</div>
+          <div class="sc-label" style="font-weight:700">Recuperação projetada</div><div class="sc-val highlight">R$ 2,2M</div><div class="sc-val highlight">R$ 3,2M</div><div class="sc-val highlight">R$ 3,8M</div>
+          <div class="sc-label">Custo operacional</div><div class="sc-val">R$ 240k</div><div class="sc-val">R$ 480k</div><div class="sc-val">R$ 720k</div>
+          <div class="sc-label" style="font-weight:700">ROI projetado</div><div class="sc-val" style="font-weight:700;color:var(--green)">9,2:1</div><div class="sc-val" style="font-weight:700;color:var(--green)">6,7:1</div><div class="sc-val" style="font-weight:700;color:var(--green)">5,3:1</div>
+          <div class="sc-label">Payback estimado</div><div class="sc-val">Mês 2</div><div class="sc-val" style="font-weight:700;color:var(--violet)">Mês 3</div><div class="sc-val">Mês 4</div>
+          <div class="sc-label">Plateau de recuperação</div><div class="sc-val">Mês 5</div><div class="sc-val">Mês 8</div><div class="sc-val">Mês 10</div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <!-- C2: aviso curvas ilustrativas -->
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Recuperação cumulativa mês a mês (referência — calibrar com Aba 4)</div><div class="chart-subtitle">Curva de decay · 3 cenários · payback marcado</div></div></div>
+          <div class="decay-warn"><span>⚠</span><span>Curvas de decay usam parâmetros de referência de mercado — não calibrados com esta carteira. Para calibração, conecte os dados reais de recuperação por safra (Aba 4 → Decay de recuperação).</span></div>
+          <div class="chart-container" style="height:200px"><canvas id="c-recup"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">ROI por cenário</div><div class="chart-subtitle">Retorno sobre investimento</div></div></div><div class="chart-container" style="height:220px"><canvas id="c-roi"></canvas></div></div>
+      </div>
+      <!-- Correção 7: elasticidade de desconto -->
+      <div class="chart-grid">
+        <div class="chart-card full"><div class="chart-header"><div><div class="chart-title">Elasticidade de desconto</div><div class="chart-subtitle">Relação entre nível de desconto em juros/multa, taxa de adesão e valor líquido recuperado</div></div></div><div class="chart-container" style="height:260px"><canvas id="c-elasticidade"></canvas></div></div>
+      </div>
+      <div class="insight-gen" id="ig-6"><button class="btn-insight" onclick="genInsight(6)"><span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados</button><div class="insight-result"></div></div>
+    </div>
+
+  </div>
+
+  <div class="action-bar">
+    <div class="action-left"><div class="pulse"></div>Pipeline concluído · 7 etapas · 3,1s · beberibe.yaml</div>
+    <div class="action-btns">
+      <button class="btn btn-ghost">Exportar dados (.parquet)</button>
+      <button class="btn btn-secondary">Gerar dashboard HTML</button>
+      <button class="btn btn-primary">Gerar relatório DOCX</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const g='rgba(0,0,0,.05)',tx='#9CA3AF';
+const bo={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:g},ticks:{font:{size:10,family:'Poppins'},color:tx}},y:{grid:{color:g},ticks:{font:{size:10,family:'Poppins'},color:tx}}}};
+const lo={display:true,position:'top',labels:{font:{size:10,family:'Poppins'},color:tx,boxWidth:10,padding:8,usePointStyle:true,pointStyle:'rectRounded'}};
+const pX=Array.from({length:20},(_,i)=>(i+1)*5+'%'),pY=[18,32,43,52,59,65,70,74,78,81,84,87,89,91,93,94.5,96,97,98,99];
+
+const inited=new Set();
+
+// Correção 4: função de decay para geração de curvas de recuperação
+function decayCurve(peak, months, decayRate){
+  return Array.from({length:months},(_,i)=>+(peak*(1-Math.exp(-decayRate*(i+1)))).toFixed(2));
+}
+
+const builders={
+  0:function(){
+    new Chart(document.getElementById('c-tributo'),{type:'doughnut',data:{labels:['IPTU','ISS','ITBI','Taxas','Outros'],datasets:[{data:[13.5,8.7,2.5,4.5,.3],backgroundColor:['#0A2A5F','#7B2CBF','#00A8BF','#D97706','#9CA3AF']}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:true,position:'right',labels:{font:{size:11,family:'Poppins'},color:'#6B7280',boxWidth:10,padding:8,usePointStyle:true,pointStyle:'rectRounded'}}}}});
+    // C4: Funil com decomposição por causa — barras empilhadas por tipo de eliminação
+    new Chart(document.getElementById('c-funil'),{type:'bar',data:{
+      labels:['Bruta','Estoque morto','Ativa'],
+      datasets:[
+        {label:'Carteira ativa',data:[0,0,29.5],backgroundColor:'#059669',borderRadius:4,stack:'s'},
+        {label:'Prescrição',data:[0,10.2,0],backgroundColor:'#991B1B',stack:'s'},
+        {label:'Valor irrisório',data:[0,2.1,0],backgroundColor:'#DC2626',stack:'s'},
+        {label:'Devedor inexistente',data:[0,2.5,0],backgroundColor:'#F97316',stack:'s'},
+        {label:'Base',data:[44.3,0,0],backgroundColor:'#0A2A5F',borderRadius:4,stack:'s'}
+      ]
+    },options:{...bo,indexAxis:'y',plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10,family:'Poppins'},color:tx,boxWidth:10,padding:6,usePointStyle:true,pointStyle:'rectRounded'}}},scales:{...bo.scales,x:{...bo.scales.x,stacked:true,ticks:{...bo.scales.x.ticks,callback:v=>'R$'+Math.abs(v)+'M'}},y:{...bo.scales.y,stacked:true}}}});
+    new Chart(document.getElementById('c-pareto'),{type:'line',data:{labels:pX,datasets:[{data:pY,borderColor:'#7B2CBF',backgroundColor:'rgba(123,44,191,.06)',fill:true,pointRadius:0,borderWidth:2,tension:.35},{data:pX.map(()=>80),borderColor:'rgba(220,38,38,.3)',borderDash:[5,5],pointRadius:0,borderWidth:1}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,max:100,ticks:{...bo.scales.y.ticks,callback:v=>v+'%'}}}}});
+    new Chart(document.getElementById('c-idade'),{type:'bar',data:{labels:['< 1 ano','1–3','3–5','> 5'],datasets:[{label:'IPTU',data:[3.2,4.8,3.4,2.1],backgroundColor:'#0A2A5F',borderRadius:2},{label:'ISS',data:[2.1,3.2,2.1,1.3],backgroundColor:'#7B2CBF',borderRadius:2},{label:'Taxas',data:[1.2,1.6,1,.7],backgroundColor:'#00A8BF',borderRadius:2},{label:'Outros',data:[.4,.6,.5,.3],backgroundColor:'#D97706',borderRadius:2}]},options:{...bo,plugins:{legend:lo},scales:{...bo.scales,x:{...bo.scales.x,stacked:true},y:{...bo.scales.y,stacked:true,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+    // F1: Fluxo entrada vs recuperação
+    new Chart(document.getElementById('c-fluxo'),{type:'bar',data:{
+      labels:['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12'],
+      datasets:[
+        {label:'CDAs inscritas',data:[98,112,145,138,102,89,94,108,121,134,118,88],backgroundColor:'rgba(10,42,95,.7)',borderRadius:3,order:2},
+        {label:'CDAs recuperadas',data:[72,81,103,95,68,74,88,79,65,71,82,65],type:'line',borderColor:'#7B2CBF',backgroundColor:'rgba(123,44,191,.08)',fill:true,pointRadius:3,pointBackgroundColor:'#7B2CBF',borderWidth:2,tension:.3,order:1}
+      ]
+    },options:{...bo,plugins:{legend:lo},scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>v+' CDAs'}}}}});
+  },
+  1:function(){
+    new Chart(document.getElementById('c-faixa'),{type:'bar',data:{labels:['Até R$500','R$500–2k','R$2k–10k','R$10k–50k','>R$50k'],datasets:[{data:[1,3.3,10,10.9,4.3],backgroundColor:'#7B2CBF',borderRadius:4,barPercentage:.6}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+    new Chart(document.getElementById('c-pfpj'),{type:'bar',data:{labels:['Pessoa Física','Pessoa Jurídica'],datasets:[{data:[17.2,12.3],backgroundColor:['#0A2A5F','#7B2CBF'],borderRadius:4,barPercentage:.5}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+  },
+  2:function(){
+    // Correção 1: scores no histograma — urgência monotônica puxando para valores altos
+    new Chart(document.getElementById('c-spri'),{type:'bar',data:{labels:Array.from({length:12},(_,i)=>(i*5)+'-'+(i*5+5)),datasets:[{data:[8,18,45,98,212,334,412,287,134,67,28,12],backgroundColor:'#0A2A5F',borderRadius:2,barPercentage:.85}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,display:false}}}});
+    new Chart(document.getElementById('c-srec'),{type:'bar',data:{labels:Array.from({length:10},(_,i)=>(i*5)+'-'+(i*5+5)),datasets:[{data:[45,98,187,312,421,298,187,76,34,12],backgroundColor:'#7B2CBF',borderRadius:2,barPercentage:.85}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,display:false}}}});
+  },
+  3:function(){
+    new Chart(document.getElementById('c-safra'),{type:'bar',data:{labels:['2019','2020','2021','2022','2023','2024','2025'],datasets:[{label:'Valor inscrito (R$M)',data:[3.8,4.2,5.1,6.2,7.4,8.9,4.7],backgroundColor:'rgba(10,42,95,.7)',borderRadius:4,yAxisID:'y',order:2},{label:'Taxa recuperação',data:[7,9,12,14,18,23,8],type:'line',borderColor:'#7B2CBF',backgroundColor:'rgba(123,44,191,.1)',fill:true,pointRadius:4,pointBackgroundColor:'#7B2CBF',borderWidth:2,tension:.3,yAxisID:'y1',order:1}]},options:{...bo,plugins:{legend:lo},scales:{x:{grid:{color:g},ticks:{font:{size:10,family:'Poppins'},color:tx}},y:{position:'left',grid:{color:g},ticks:{font:{size:10},color:tx,callback:v=>'R$'+v+'M'}},y1:{position:'right',grid:{display:false},ticks:{font:{size:10},color:'#7B2CBF',callback:v=>v+'%'},max:30}}}});
+
+    // Correção 1 + 5: aging com cores monotônicas (verde→vermelho) + padrão hachurado para interrompidas
+    var agingCanvas = document.getElementById('c-aging');
+    var agingCtx = agingCanvas.getContext('2d');
+    // Cria padrão hachurado para CDAs com prescrição interrompida
+    function createHatch(ctx, color){
+      var c = document.createElement('canvas');
+      c.width = 8; c.height = 8;
+      var cx = c.getContext('2d');
+      cx.strokeStyle = color;
+      cx.lineWidth = 1.5;
+      cx.beginPath(); cx.moveTo(0,8); cx.lineTo(8,0); cx.stroke();
+      return ctx.createPattern(c, 'repeat');
+    }
+    var hatchGreen = createHatch(agingCtx,'rgba(5,150,105,.5)');
+    var hatchAmber = createHatch(agingCtx,'rgba(217,119,6,.5)');
+    var hatchRed = createHatch(agingCtx,'rgba(220,38,38,.5)');
+
+    new Chart(agingCanvas,{type:'bar',data:{
+      labels:['< 6m','6m–1a','1a–2a','2a–3a','3a–4a','4a–5a'],
+      datasets:[
+        {label:'Valor normal',data:[2.0,3.2,5.8,5.2,3.8,2.0],backgroundColor:['#22C55E','#65A30D','#EAB308','#F97316','#DC2626','#991B1B'],borderRadius:4,barPercentage:.6,stack:'s'},
+        {label:'Prescrição interrompida',data:[0.8,0.9,1.4,1.6,1.6,1.2],backgroundColor:[hatchGreen,hatchGreen,hatchAmber,hatchAmber,hatchRed,hatchRed],borderRadius:4,barPercentage:.6,stack:'s'}
+      ]
+    },options:{...bo,plugins:{legend:{display:true,position:'top',labels:{font:{size:10,family:'Poppins'},color:tx,boxWidth:10,padding:8}}},scales:{...bo.scales,y:{...bo.scales.y,stacked:true,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+
+    new Chart(document.getElementById('c-decay'),{type:'line',data:{labels:['Inscr.','6m','1a','1,5a','2a','2,5a','3a','3,5a','4a','4,5a','5a'],datasets:[{label:'Safra 2024',data:[0,5,12,16,19,21,23,null,null,null,null],borderColor:'#059669',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#059669',tension:.3},{label:'Safra 2023',data:[0,4,9,13,16,18,19,20,21,null,null],borderColor:'#7B2CBF',borderWidth:2,pointRadius:3,pointBackgroundColor:'#7B2CBF',tension:.3},{label:'Safra 2022',data:[0,3,7,10,12,13,14,14.5,15,15,15],borderColor:'#0A2A5F',borderWidth:2,pointRadius:3,pointBackgroundColor:'#0A2A5F',tension:.3},{label:'Safra 2021',data:[0,2,5,7,9,10,11,11.5,12,12,12],borderColor:'#D97706',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#D97706',tension:.3,borderDash:[4,4]},{label:'Safra 2020',data:[0,1.5,4,5.5,7,8,8.5,9,9,9,9],borderColor:'#9CA3AF',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#9CA3AF',tension:.3,borderDash:[4,4]}]},options:{...bo,plugins:{legend:lo},scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>v+'%'},max:25}}}});
+    // F4: Sazonalidade — pico IPTU em mar/abr, ISS em out/nov, recuperação em fev/mar e jul
+    new Chart(document.getElementById('c-sazon'),{type:'bar',data:{
+      labels:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],
+      datasets:[
+        {label:'CDAs inscritas (média histórica)',data:[82,94,187,210,98,72,68,85,102,178,195,88],backgroundColor:'rgba(10,42,95,.65)',borderRadius:3,barPercentage:.4},
+        {label:'Recuperações (média histórica)',data:[71,124,138,95,62,58,112,74,68,84,91,73],backgroundColor:'#059669',borderRadius:3,barPercentage:.4}
+      ]
+    },options:{...bo,plugins:{legend:lo},scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>v+' CDAs'}}}}})
+  },
+  4:function(){
+    new Chart(document.getElementById('c-contact-valor'),{type:'bar',data:{labels:['Até R$500','R$500–2k','R$2k–10k','R$10k–50k','>R$50k'],datasets:[{label:'Contactável',data:[.5,1.8,6.2,7.8,3.1],backgroundColor:'#059669',borderRadius:2},{label:'Só endereço',data:[.3,.9,2.4,2.1,.8],backgroundColor:'#D97706',borderRadius:2},{label:'Incontactável',data:[.2,.6,1.4,1.0,.4],backgroundColor:'#DC2626',borderRadius:2}]},options:{...bo,plugins:{legend:lo},scales:{...bo.scales,x:{...bo.scales.x,stacked:true},y:{...bo.scales.y,stacked:true,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+  },
+  5:function(){
+    new Chart(document.getElementById('c-reincid'),{type:'bar',data:{labels:['Reincidente (já pagou)','Primeiro débito','Reincidente (só parcelou)'],datasets:[{label:'Valor (R$M)',data:[10.2,14.7,4.6],backgroundColor:['#7B2CBF','#0A2A5F','#D97706'],borderRadius:4,barPercentage:.5}]},options:{...bo,indexAxis:'y',scales:{...bo.scales,x:{...bo.scales.x,ticks:{...bo.scales.x.ticks,callback:v=>'R$'+v+'M'}}}}});
+    new Chart(document.getElementById('c-sobrev'),{type:'line',data:{labels:['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª'],datasets:[{label:'% parcelamentos ativos',data:[100,94,87,78,68,62,58,55,53,52,51,50],borderColor:'#7B2CBF',backgroundColor:'rgba(123,44,191,.06)',fill:true,pointRadius:3,pointBackgroundColor:'#7B2CBF',borderWidth:2,tension:.3},{data:Array(12).fill(62),borderColor:'rgba(220,38,38,.3)',borderDash:[5,5],pointRadius:0,borderWidth:1}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,max:100,ticks:{...bo.scales.y.ticks,callback:v=>v+'%'}}}}});
+  },
+  6:function(){
+    // Correção 4: curvas com decay realista + marcação de breakeven
+    var meses = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12'];
+    var conserv = decayCurve(2.2,12,0.9);
+    var moder   = decayCurve(3.2,12,0.55);
+    var agressiv= decayCurve(3.8,12,0.38);
+
+    // Anotações de breakeven (custo coberto)
+    var custoConserv = 0.24, custoModer = 0.48, custoAgressiv = 0.72;
+    var beConserv = conserv.findIndex(v=>v>=custoConserv);
+    var beModer   = moder.findIndex(v=>v>=custoModer);
+    var beAgressiv= agressiv.findIndex(v=>v>=custoAgressiv);
+
+    new Chart(document.getElementById('c-recup'),{type:'line',data:{labels:meses,datasets:[
+      {label:'Conservador',data:conserv,borderColor:'#9CA3AF',borderWidth:1.5,pointRadius:meses.map((_,i)=>i===beConserv?6:0),pointBackgroundColor:'#9CA3AF',pointStyle:meses.map((_,i)=>i===beConserv?'star':'circle'),tension:.3,borderDash:[4,4]},
+      {label:'Moderado',data:moder,borderColor:'#7B2CBF',borderWidth:2.5,pointRadius:meses.map((_,i)=>i===beModer?6:0),pointBackgroundColor:'#7B2CBF',pointStyle:meses.map((_,i)=>i===beModer?'star':'circle'),tension:.3,fill:true,backgroundColor:'rgba(123,44,191,.05)'},
+      {label:'Agressivo',data:agressiv,borderColor:'#0A2A5F',borderWidth:1.5,pointRadius:meses.map((_,i)=>i===beAgressiv?6:0),pointBackgroundColor:'#0A2A5F',pointStyle:meses.map((_,i)=>i===beAgressiv?'star':'circle'),tension:.3,borderDash:[8,4]}
+    ]},options:{...bo,plugins:{legend:{display:true,position:'top',labels:{font:{size:10,family:'Poppins'},color:tx,boxWidth:16,padding:8,usePointStyle:true,pointStyle:'line'}},tooltip:{callbacks:{footer:function(items){var idx=items[0].dataIndex;if(idx===beConserv||idx===beModer||idx===beAgressiv)return '★ Payback atingido neste mês';}}}},scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>'R$'+v+'M'}}}}});
+
+    new Chart(document.getElementById('c-roi'),{type:'bar',data:{labels:['Conservador','Moderado','Agressivo'],datasets:[{data:[9.2,6.7,5.3],backgroundColor:['#9CA3AF','#7B2CBF','#0A2A5F'],borderRadius:6,barPercentage:.5}]},options:{...bo,scales:{...bo.scales,y:{...bo.scales.y,ticks:{...bo.scales.y.ticks,callback:v=>v+':1'}}}}});
+
+    // Correção 7: elasticidade de desconto
+    var descontos = Array.from({length:11},(_,i)=>i*5); // 0 a 50%
+    // Taxa de adesão: curva saturante (logística) crescente com desconto
+    var taxaAdesao = descontos.map(d=>+(12*(1-Math.exp(-0.05*d))).toFixed(1));
+    // Valor líquido recuperado: curva em U invertido — aumenta até ~25%, depois cai
+    // valor recuperado = valor_base * adesao * (1 - desconto/100 * fator_desconto)
+    var valorBase = 29.5;
+    var valorLiq = descontos.map((d,i)=>+(valorBase * (taxaAdesao[i]/100) * (1 - d*0.018)).toFixed(2));
+
+    var optDesconto = descontos[valorLiq.indexOf(Math.max(...valorLiq))];
+
+    new Chart(document.getElementById('c-elasticidade'),{type:'line',data:{
+      labels:descontos.map(d=>d+'%'),
+      datasets:[
+        {label:'Taxa de adesão (%)',data:taxaAdesao,borderColor:'#059669',backgroundColor:'rgba(5,150,105,.06)',fill:true,pointRadius:3,pointBackgroundColor:'#059669',borderWidth:2,tension:.4,yAxisID:'y'},
+        {label:'Valor líquido (R$M)',data:valorLiq,borderColor:'#7B2CBF',backgroundColor:'rgba(123,44,191,.0)',fill:false,pointRadius:3,pointBackgroundColor:'#7B2CBF',borderWidth:2.5,tension:.4,yAxisID:'y1'}
+      ]
+    },options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,position:'top',labels:{font:{size:10,family:'Poppins'},color:tx,boxWidth:10,padding:8,usePointStyle:true,pointStyle:'rectRounded'}},
+        tooltip:{callbacks:{afterBody:function(items){if(items[0].label===optDesconto+'%')return ['→ Desconto ótimo: equilíbrio máximo entre volume e receita unitária'];}}}
+      },
+      scales:{
+        x:{grid:{color:g},ticks:{font:{size:10,family:'Poppins'},color:tx}},
+        y:{position:'left',grid:{color:g},ticks:{font:{size:10},color:'#059669',callback:v=>v+'%'},title:{display:true,text:'Taxa de adesão',font:{size:10},color:'#059669'}},
+        y1:{position:'right',grid:{display:false},ticks:{font:{size:10},color:'#7B2CBF',callback:v=>'R$'+v+'M'},title:{display:true,text:'Valor líquido recuperado',font:{size:10},color:'#7B2CBF'}}
+      }
+    }});
+
+    // Linha vertical do desconto ótimo via plugin
+    Chart.register({
+      id:'optLine',
+      afterDraw:function(chart){
+        if(chart.canvas.id!=='c-elasticidade') return;
+        var idx = descontos.indexOf(optDesconto);
+        var meta = chart.getDatasetMeta(0);
+        if(!meta.data[idx]) return;
+        var x = meta.data[idx].x;
+        var ctx2 = chart.ctx;
+        var yA = chart.scales.y.top, yB = chart.scales.y.bottom;
+        ctx2.save();
+        ctx2.setLineDash([6,4]);
+        ctx2.strokeStyle='rgba(123,44,191,.5)';
+        ctx2.lineWidth=1.5;
+        ctx2.beginPath();ctx2.moveTo(x,yA);ctx2.lineTo(x,yB);ctx2.stroke();
+        ctx2.fillStyle='#7B2CBF';
+        ctx2.font='bold 10px Poppins';
+        ctx2.textAlign='center';
+        ctx2.fillText('Ótimo ~'+optDesconto+'%',x,yA-6);
+        ctx2.restore();
+      }
+    });
+  }
+};
+
+function initTab(i){
+  if(!inited.has(i) && builders[i]){
+    inited.add(i);
+    builders[i]();
+  }
+}
+
+function switchTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab-content').forEach((c,j)=>c.classList.toggle('active',j===i));
+  setTimeout(()=>initTab(i),50);
+}
+
+// Correção 2: verificar se Q1 ficará vazio com thresholds altos
+function checkQ1Empty(){
+  var tpri = parseInt(document.querySelector('[oninput*="d-tpri"]').value);
+  var trec = parseInt(document.querySelector('[oninput*="d-trec"]').value);
+  var warn = document.getElementById('q1-empty-warn');
+  if(warn) warn.classList.toggle('show', tpri >= 55 && trec >= 45);
+}
+
+
+// Exportar CSV de ações — Correção 6
+function exportCSV(){
+  var rows=[['#','Contribuinte','Tipo','CDAs','Valor','Densidade','Padrao','Quadrante','Score','Acao_Recomendada'],
+    [1,'Construtora Litoral Norte Ltda','PJ',47,'R$ 1.247.832','R$ 26.549','Pulverizado','Q1',94,'Negociação direta + acordo global'],
+    [2,'Rede Farma Beberibe ME','PJ',23,'R$ 892.114','R$ 38.788','Médio','Q1',91,'WhatsApp à tarde + parcelamento 6x'],
+    [3,'José M. Santos','PF',12,'R$ 534.210','R$ 44.518','Médio','Q1',87,'WhatsApp + parcelamento 6x'],
+    [4,'Pousada Morro Branco Hotelaria','PJ',31,'R$ 478.933','R$ 15.449','Pulverizado','Q3',62,'Protesto em cartório'],
+    [5,'Maria F. Oliveira','PF',8,'R$ 312.770','R$ 39.096','Médio','Q2',73,'Campanha WhatsApp à tarde'],
+    [6,'Auto Posto São João Ltda','PJ',3,'R$ 287.440','R$ 95.813','Concentrado','Q1',89,'Negociação individual presencial']
+  ];
+  var csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  var blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='acoes_contribuintes_beberibe.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+initTab(0);
+
+// Insights data
+var insightData = {
+  0: {
+    title: 'Insights cruzados do diagnóstico',
+    badge: '5 insights',
+    items: [
+      { icon: 'ii-alert', emoji: '!', title: 'Concentração de risco: Construtora = 10,8% da carteira', desc: 'Construtora Litoral Norte Ltda representa <b>R$ 3,2M — 10,8% da carteira ativa</b>. Qualquer projeção de cenário é materialmente distorcida por uma única negociação. Calcule sempre os cenários com e sem este contribuinte antes de apresentar ao cliente.', tags: ['Concentração','Risco','Cenário'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Funil: prescrição domina o estoque morto', desc: 'Dos R$ 14,8M eliminados, <b>R$ 10,2M (69%) são por prescrição</b> — não por irrisório ou cadastro inativo. Isso é perda por inação histórica, não por problema estrutural de carteira. Argumento direto para o gestor: cada mês sem operação repete o padrão.', tags: ['Funil','Prescrição','Estoque morto'] },
+      { icon: 'ii-cross', emoji: '~', title: 'Carteira crescendo: +35 CDAs/mês líquido', desc: 'O fluxo de entrada (<b>1.247 novas CDAs em 12m</b>) supera consistentemente a recuperação (<b>823 em 12m</b>). O saldo líquido de +35 CDAs/mês significa que a operação precisa primeiro estabilizar o crescimento antes de reduzir o estoque.', tags: ['Fluxo','Entrada','Crescimento'] },
+      { icon: 'ii-opp', emoji: '+', title: 'IPTU domina E tem melhor contactabilidade', desc: 'IPTU representa <b>46% da carteira ativa</b> e tem score de contactabilidade <b>72</b> — o maior entre todos os tributos. Canal primário: WhatsApp (56% de cobertura para IPTU).', tags: ['Composição','Contactabilidade','Canal'] },
+      { icon: 'ii-action', emoji: '>', title: 'Quick win identificado: R$ 3,7M em 90 dias', desc: 'Q1 (<b>847 contribuintes</b>) com contactabilidade digital (<b>73% WhatsApp</b>) e reincidentes (<b>61%</b>): campanha automatizada via Concilia + Regulariza pode atingir R$ 3,7M nos primeiros 90 dias. Excluir Construtora do cálculo base — negociar separadamente.', tags: ['Score Q1','WhatsApp','Reincidência','Concentração'] }
+    ]
+  },
+  1: {
+    title: 'Insights cruzados da segmentação',
+    badge: '3 insights',
+    items: [
+      { icon: 'ii-opp', emoji: '+', title: 'Segmento ouro: PJ + ISS + R$ 10k-50k', desc: '<b>89 contribuintes</b> concentram R$ 3,4M neste segmento. Cruzando com contactabilidade: <b>78% têm e-mail corporativo</b> e <b>54% são reincidentes</b>. Abordagem: negociação consultiva individualizada via Concilia.', tags: ['PJ','ISS','Reincidência','Concilia'] },
+      { icon: 'ii-cross', emoji: '~', title: 'Faixa micro (< R$ 500) consome recurso sem retorno', desc: '<b>2.847 contribuintes</b> na faixa micro somam apenas R$ 1M (3,4% da carteira). Destes, <b>42% são incontactáveis</b>. Encaminhar para campanha de massa automatizada ou exclusão operacional.', tags: ['Valor mínimo','Contactabilidade','Custo'] },
+      { icon: 'ii-alert', emoji: '!', title: 'PF domina em volume mas PJ domina em densidade', desc: 'PF tem <b>58% do valor</b> distribuído em 6.200+ contribuintes. PJ tem <b>42% do valor</b> em apenas 1.800 contribuintes. <b>ROI por contribuinte é 2,5x maior em PJ</b>.', tags: ['PF vs PJ','Densidade','ROI'] }
+    ]
+  },
+  2: {
+    title: 'Insights cruzados do scoring',
+    badge: '3 insights',
+    items: [
+      { icon: 'ii-opp', emoji: '+', title: 'Q1 com thresholds absolutos é mais cirúrgico', desc: 'Com threshold Prioridade ≥ 40 + Recuperabilidade ≥ 30, o Q1 (<b>847 contribuintes</b>) garante que todos atendem um patamar mínimo — não apenas estão acima da mediana. <b>73% contactáveis digitalmente</b>. Cruzando com next-best-action: 82% têm ação automática definida.', tags: ['Q1 threshold','Contactab.','Next-best-action'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Q3 tem valor preso + ação recomendada protesto', desc: '<b>R$ 5,9M no Q3</b>. Next-best-action: protesto em cartório para os de maior valor. Interrompendo a prescrição via protesto, <b>R$ 1,8M migram do bruto para o líquido prescrevendo</b>.', tags: ['Q3','Protesto','Prescrição interrompida'] },
+      { icon: 'ii-action', emoji: '>', title: 'Redistribuição de esforço recomendada', desc: 'Q4 consome atenção de <b>36% dos contribuintes para 9% do valor</b>. Proposta: zerar esforço ativo no Q4, realocar para enriquecimento do Q3 e intensificação do Q1. Resultado projetado: <b>+R$ 1,8M</b> de valor atingível.', tags: ['Q4','Realocação','Eficiência'] }
+    ]
+  },
+  3: {
+    title: 'Insights cruzados de safra e aging',
+    badge: '5 insights',
+    items: [
+      { icon: 'ii-alert', emoji: '!', title: 'R$ 2,4M líquidos em contagem regressiva', desc: 'Após descontar interrompidas (protestos, parcelamentos ativos), o valor líquido em risco prescricional é <b>R$ 2,4M</b>. Dos líquidos, <b>R$ 1,1M estão no Q1</b> — ação máxima nos próximos 60 dias.', tags: ['Prescrição líquida','Q1','Urgência'] },
+      { icon: 'ii-cross', emoji: '~', title: 'Safra 2024 é a janela de ouro', desc: 'Taxa de recuperação de <b>23%</b> — a melhor do histórico. <b>R$ 8,9M inscritos</b>. Se não abordados nos próximos 12 meses, a taxa cai para ~14% (padrão safra 2023).', tags: ['Safra 2024','Decay','Janela'] },
+      { icon: 'ii-opp', emoji: '+', title: 'Aging + interrupção: R$ 1,7M protegidos', desc: 'As barras hachuradas do aging somam <b>R$ 1,7M com prescrição interrompida</b>. Este valor está legalmente protegido — não entra no cômputo de urgência. Priorize o volume não-interrompido.', tags: ['Interrompida','Protesto','Proteção'] },
+      { icon: 'ii-cross', emoji: '~', title: 'Sazonalidade: mar/abr e fev/jul são os janelas', desc: 'Pico de inscrição em <b>mar/abr</b> (IPTU) e <b>out/nov</b> (ISS). Pico de recuperação em <b>fev/mar</b> e <b>julho</b>. Lançar campanha em setembro — sem pico de recuperação e com pico de inscrição chegando — é timing ruim. Use a sazonalidade para justificar o mês de início.', tags: ['Sazonalidade','Timing','Campanha'] },
+      { icon: 'ii-action', emoji: '>', title: 'Campanhas curtas e intensas no timing certo', desc: 'Decay mostra que <b>70% da recuperação acontece nos primeiros 18 meses</b>. Combinado com sazonalidade: campanha de fev/mar com 6 meses de duração e 25% de desconto maximiza o valor líquido recuperado.', tags: ['Decay','Sazonalidade','Desconto ótimo'] }
+    ]
+  },
+  4: {
+    title: 'Insights cruzados de contactabilidade',
+    badge: '3 insights',
+    items: [
+      { icon: 'ii-alert', emoji: '!', title: 'R$ 1,4M incontactáveis valem enriquecimento', desc: 'Dos R$ 3,8M incontactáveis, <b>R$ 1,4M são de contribuintes > R$ 10k</b>. Custo de enriquecimento (~R$ 300 para 200 contrib.) tem <b>ROI potencial de 4.667:1</b>. O restante (faixas baixas) não justifica.', tags: ['Enriquecimento','ROI','Faixa valor'] },
+      { icon: 'ii-cross', emoji: '~', title: 'Gap de canal por tributo gera estratégia diferenciada', desc: 'IPTU tem <b>56% WhatsApp</b> — campanha digital. ITBI tem <b>19% e-mail, 42% celular</b> — SMS viável. Taxas têm <b>75% endereço</b> — correspondência ou mutirão presencial.', tags: ['Canal','IPTU','ITBI','Taxas'] },
+      { icon: 'ii-action', emoji: '>', title: 'Mix de canais otimizado para Q1 + next-best-action', desc: 'Os 847 do Q1 têm: <b>WhatsApp 73%</b>, celular 81%. Next-best-action automático: <b>1ª onda WhatsApp</b>, <b>2ª onda SMS</b>, <b>3ª onda ligação</b> para alto valor. Custo total: <b>R$ 2.400</b> para R$ 12,4M.', tags: ['Q1','WhatsApp','SMS','NBA'] }
+    ]
+  },
+  5: {
+    title: 'Insights cruzados do histórico',
+    badge: '5 insights',
+    items: [
+      { icon: 'ii-opp', emoji: '+', title: 'Reincidentes do Q1 = maior probabilidade do portfólio', desc: '<b>518 contribuintes</b> reincidentes que já pagaram E estão no Q1: R$ 7,6M. Probabilidade estimada de conversão: <b>32%</b> vs 15% do benchmark geral.', tags: ['Reincidência','Q1','Conversão'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Cohort REFIS 2023: 32% de reabordagem — o pior do histórico', desc: 'O cohort do REFIS 2023 tem a pior taxa de reabordagem com sucesso: apenas <b>32%</b>. São 167 contribuintes que quebraram e voltaram para a carteira — perfil "quebrador crônico". Abordagem diferente: parcelas menores (3x), prazo mais curto, desconto por quitação à vista.', tags: ['Cohort','REFIS 2023','Quebrador crônico'] },
+      { icon: 'ii-opp', emoji: '+', title: 'Cohort REFIS 2022: 62% de reabordagem — benchmark interno', desc: 'O REFIS 2022 tem a melhor taxa de reabordagem (<b>62%</b>) e perfil dominante "Reincidente pagador". Use as condições desse programa como referência para a próxima campanha — condições melhores geram perfil mais recuperável.', tags: ['Cohort','REFIS 2022','Referência'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Taxa de quebra de 38% invalida cenário bruto', desc: 'Cenários com adesão bruta superestimam em <b>~38%</b>. Ajustando para 6x: Moderado efetivo cai de R$ 3,2M para <b>R$ 2,0M</b>. Elasticidade ótima de 25% recupera parte dessa diferença.', tags: ['Quebra','Cenário','Ajuste'] },
+      { icon: 'ii-action', emoji: '>', title: 'Redesenhar oferta: 6x supera 12x', desc: 'Trocar 12x por <b>6x com 25% de desconto</b> (alinhado ao ótimo da elasticidade): conclusão sobe de 55% para ~72%. Valor líquido recuperado <b>aumenta 18%</b> mesmo com desconto.', tags: ['Parcelamento','6x','Desconto ótimo'] }
+    ]
+  },
+  6: {
+    title: 'Insights cruzados dos cenários',
+    badge: '4 insights',
+    items: [
+      { icon: 'ii-alert', emoji: '!', title: 'Cenário precisa de versão sem Construtora Litoral', desc: 'A Construtora representa <b>10,8% da carteira</b>. Qualquer projeção apresentada ao cliente deve ter duas versões: com e sem ela. Cenário Moderado sem a Construtora: R$ 3,2M → R$ 2,9M — ainda bom, mas honesto.', tags: ['Concentração','Risco','Cenário duplo'] },
+      { icon: 'ii-opp', emoji: '+', title: 'Cenário cirúrgico com desconto ótimo supera todos', desc: 'Q1 reincidentes via WhatsApp (R$ 7,6M) + top 100 do Q3 pós-enriquecimento (R$ 3,2M) + CDAs prescrevendo líquidos (R$ 1,1M) + desconto 25% (ótimo da elasticidade). <b>ROI projetado: 21,7:1</b>. Calibrar decay com Aba 4 antes de usar em proposta.', tags: ['Cirúrgico','Elasticidade','ROI 21:1'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Curvas de decay são referência — não projeção calibrada', desc: 'Os parâmetros de decay (0.9/0.55/0.38) são benchmarks de mercado. Antes de incluir qualquer projeção em proposta comercial, calibre com o decay real das safras desta carteira (Aba 4 → Decay de recuperação por safra).', tags: ['Decay','Calibração','Aba 4'] },
+      { icon: 'ii-action', emoji: '>', title: 'Recomendação final de operação em 3 ondas', desc: '<b>Onda 1 (0-90 dias):</b> Cenário cirúrgico + sazonalidade fev/mar. <b>Onda 2 (90-180 dias):</b> Expansão Q2 via Regulariza com desconto 25%. <b>Onda 3 (180+ dias):</b> Enriquecimento Q3 + mutirão Morro Branco/Sucatinga.', tags: ['Roadmap','3 ondas','Sazonalidade'] }
+    ]
+  }
+};
+
+function genInsight(tabIdx) {
+  var container = document.getElementById('ig-' + tabIdx);
+  var btn = container.querySelector('.btn-insight');
+  var result = container.querySelector('.insight-result');
+  if (result.classList.contains('show')) {
+    result.classList.remove('show');
+    btn.classList.remove('done');
+    btn.innerHTML = '<span class="btn-insight-icon">&#x2728;</span>Gerar insights cruzados';
+    return;
+  }
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="btn-insight-icon">&#x2699;</span>Analisando cruzamentos entre abas...';
+  var data = insightData[tabIdx];
+  setTimeout(function() {
+    result.innerHTML = '<div class="insight-card"><div class="insight-card-header">' + data.title + '<span class="ic-badge">' + data.badge + '</span></div><div class="insight-items"></div></div>';
+    result.classList.add('show');
+    btn.classList.remove('loading');
+    btn.classList.add('done');
+    btn.innerHTML = '<span class="btn-insight-icon">&#x2728;</span>Insights gerados — clique para recolher';
+    data.items.forEach(function(item, idx) {
+      setTimeout(function() {
+        var el = result.querySelector('.insight-items');
+        if (el) {
+          var div = document.createElement('div');
+          div.className = 'insight-item';
+          div.style.animation = 'fadeUp 0.4s ease';
+          div.innerHTML = '<div class="ii-icon ' + item.icon + '">' + item.emoji + '</div><div class="ii-body"><div class="ii-title">' + item.title + '</div><div class="ii-desc">' + item.desc + '</div><div class="ii-tags">' + item.tags.map(function(t){ return '<span class="ii-tag">' + t + '</span>'; }).join('') + '</div></div>';
+          el.appendChild(div);
+        }
+      }, idx * 400);
+    });
+  }, 1500);
+}
+
+// Help data
+var helpData = {
+  'Composição por tributo': {
+    what: 'Mostra como o valor total da carteira ativa está distribuído entre os tipos de tributo (IPTU, ISS, ITBI, Taxas, etc.).',
+    read: 'Quanto maior a fatia, mais concentrada a carteira naquele tributo. <b>IPTU</b> geralmente domina em municípios menores. <b>ISS</b> indica atividade econômica relevante — bom sinal para recuperação de PJ.',
+    action: 'Tributos com alta concentração devem ter estratégias específicas. IPTU tem o imóvel como garantia implícita (melhor ratio de recuperação). ISS em PJ ativa responde bem a negociação direta.'
+  },
+  'Funil de higienização': {
+    what: 'Mostra quanto da carteira bruta foi eliminado em cada etapa de limpeza, com o estoque morto decomposto por causa: Prescrição, Valor irrisório (abaixo do mínimo configurado) e Devedor inexistente/inativo.',
+    read: 'A decomposição revela a causa do problema. <b>Prescrição dominante</b> = gestão histórica negligente — o município perdeu receita por inação. <b>Irrisório dominante</b> = política de inscrição inadequada — estão inscrevendo dívidas que não valem o custo de cobrar. <b>Inexistente dominante</b> = problema de cadastro — CPF/CNPJ baixados ou dados desatualizados.',
+    action: 'Cada causa pede uma recomendação diferente. Prescrição alta → argumento de urgência para o gestor. Irrisório alto → revisar valor mínimo de inscrição. Inexistente alto → enriquecimento cadastral antes da operação.'
+  },
+  'Concentração Pareto': {
+    what: 'Mostra como o valor da carteira está concentrado em poucos contribuintes. O eixo X ordena do maior para o menor devedor; o eixo Y mostra o valor acumulado.',
+    read: '<b>Quanto mais a curva sobe rápido no início, mais concentrada a carteira</b>. Se 10% dos contribuintes = 60%+ do valor, a carteira é altamente concentrada (típico).',
+    action: 'Alta concentração é boa notícia operacional: permite abordar poucos contribuintes com alto retorno. Priorize os top 10-20% com abordagem personalizada (Q1 do score).'
+  },
+  'Valor × idade por tributo': {
+    what: 'Mostra a distribuição de valor por faixa de idade da dívida, separado por tipo de tributo.',
+    read: 'Barras mais altas nas faixas recentes (< 1 ano, 1-3 anos) = carteira "jovem" — <b>boa notícia, pois dívida recente tem taxa de recuperação muito maior</b>.',
+    action: 'Dívida recente com valor alto = ação imediata. Dívida antiga com valor baixo = custo de cobrança provavelmente não justifica.'
+  },
+  'Top contribuintes por valor': {
+    what: 'Lista os maiores devedores com quadrante, densidade de CDAs, padrão e ação sugerida. A lógica de sugestão é derivada de: quadrante + contactabilidade + reincidência + valor.',
+    read: '<b>Concentrado (1-3 CDAs)</b>: negociação individual. <b>Médio (4-9 CDAs)</b>: campanha segmentada. <b>Pulverizado (10+ CDAs)</b>: acordo global preferível. O badge ⚠ nas ações indica que são sugestões determinísticas — não substituem o julgamento do analista.',
+    action: 'Avalie o contexto de cada contribuinte antes de executar a ação sugerida. Exporte via botão CSV com a coluna de ação para a equipe operacional. Se um contribuinte representa mais de 10% da carteira, trate separadamente — veja o alerta de concentração abaixo da tabela.'
+  },
+  'Distribuição por faixa de valor': {
+    what: 'Agrupa os contribuintes por faixa de valor consolidado e mostra o valor total em cada faixa.',
+    read: '<b>A faixa com maior valor total é o sweet spot operacional</b>. Faixas muito baixas (< R$ 500) geralmente custam mais para cobrar do que valem.',
+    action: 'Calibre o valor mínimo de cobrança na sidebar. Foque recursos nas faixas de R$ 2k-50k, que tipicamente têm melhor retorno marginal.'
+  },
+  'PF vs PJ': {
+    what: 'Compara o valor total da carteira entre Pessoa Física e Pessoa Jurídica.',
+    read: 'PJ ativa tende a ter <b>melhor taxa de adesão</b>. PF responde melhor a campanhas de massa.',
+    action: 'Monte estratégias separadas: PJ recebe abordagem consultiva (Concilia), PF recebe campanha de massa (SMS/WhatsApp via Regulariza).'
+  },
+  'Matriz de segmentos': {
+    what: 'Cruza tributo com faixa de valor para revelar os segmentos mais densos da carteira.',
+    read: 'As células com maior valor são os segmentos prioritários. <b>Procure combinações de alto valor em poucas células</b>.',
+    action: 'Identifique os 3-5 segmentos que concentram 60%+ do valor. Cada um deve ter estratégia específica.'
+  },
+  'Matriz de ação 2×2': {
+    what: 'Cruza os dois eixos do score (Prioridade × Recuperabilidade) usando thresholds absolutos configuráveis. Q1 exige score_prioridade ≥ 40 E score_recuperab ≥ 30 — não por mediana, mas por limiares mínimos de qualidade.',
+    read: '<b>Q1 (verde)</b>: ação imediata. <b>Q2 (azul)</b>: campanha de massa. <b>Q3 (amarelo)</b>: protesto/judicial. <b>Q4 (vermelho)</b>: monitorar. Se Q1 ficar vazio, ajuste os thresholds ou invista em enriquecimento cadastral.',
+    action: 'Aborde na sequência Q1 → Q2 → Q3. Ajuste os thresholds na sidebar para calibrar o tamanho de cada quadrante. Thresholds mais altos = Q1 mais seletivo e de maior qualidade.'
+  },
+  'Score: Prioridade (0–60)': {
+    what: 'Histograma da distribuição de scores no eixo de Prioridade do Título. A urgência é monotônica crescente — quanto mais próximo da prescrição, maior a urgência (não há pico em 4 anos como em versões anteriores).',
+    read: 'Concentração à direita indica carteira com muita dívida urgente/valiosa. <b>A distribuição reflete o efeito da urgência monotônica</b>: dívidas mais antigas (próximas da prescrição) recebem score máximo.',
+    action: 'Use o threshold de prioridade na sidebar para definir o corte de Q1. Score alto + urgência alta = protesto imediato. Score alto + urgência baixa = campanha de massa.'
+  },
+  'Score: Recuperabilidade (0–50)': {
+    what: 'Histograma da distribuição de scores no eixo de Recuperabilidade do Contribuinte.',
+    read: 'Concentração à esquerda = carteira difícil — muitos incontactáveis ou sem histórico. <b>Concentração à direita = bom potencial</b>.',
+    action: 'Se muitos contribuintes têm score baixo, priorize enriquecimento cadastral. Uma melhoria de 10 pontos pode dobrar a taxa de adesão.'
+  },
+  'Análise de safra (vintage)': {
+    what: 'Mostra o valor inscrito por ano (barras) e a taxa de recuperação acumulada de cada safra (linha).',
+    read: '<b>Safras recentes com taxa de recuperação alta = janela aberta</b>. Safras antigas com taxa estagnada = janela fechada.',
+    action: 'Priorize as safras dos últimos 2-3 anos. Use este gráfico para justificar ao gestor por que agir rápido é crítico.'
+  },
+  'Curva de envelhecimento (aging)': {
+    what: 'Mostra quanto da carteira ativa está em cada faixa de tempo até a prescrição. Cores monotônicas: verde (longe) → vermelho (próximo). Barras hachuradas = CDAs com prescrição legalmente interrompida (protestos, parcelamentos ativos).',
+    read: '<b>Barras vermelhas (3a–5a) = urgência máxima</b>. O valor nestas faixas será perdido permanentemente se não houver ação. A porção hachurada está protegida legalmente — desconte do cálculo de urgência.',
+    action: 'CDAs vermelhos não-hachurados: protesto ou execução imediata. CDAs hachurados: monitorar e reforçar cumprimento do parcelamento. Use o KPI "Líquido" de prescrição para dimensionar a urgência real.'
+  },
+  'Decay de recuperação por safra': {
+    what: 'Mostra como a taxa de recuperação acumulada evolui ao longo do tempo para cada safra.',
+    read: '<b>A inclinação nos primeiros 12-18 meses é onde está a oportunidade</b>. Após o plateau, cada mês adicional recupera pouco.',
+    action: 'Use para definir o prazo ideal de campanha. O plateau alinhado com a elasticidade de desconto ótima (~25%) maximiza o valor líquido recuperado.'
+  },
+  'Cobertura por canal': {
+    what: 'Mostra o percentual de contribuintes atingíveis por cada canal de comunicação.',
+    read: '<b>WhatsApp e celular são os canais de maior conversão e menor custo</b>. Endereço alto + digital baixo = carteira dependente de carta/presencial.',
+    action: 'Canal com maior cobertura define a estratégia primária. WhatsApp > 45% → campanha automatizada via Regulariza.'
+  },
+  'Contactabilidade × faixa de valor': {
+    what: 'Cruza a contactabilidade com o valor para revelar onde está o "dinheiro incontactável".',
+    read: '<b>Vermelho em faixas altas = problema sério</b>. Faixas baixas incontactáveis são menos preocupantes.',
+    action: 'Para faixas > R$ 10k com alta incontactabilidade: ROI do enriquecimento se paga rapidamente. Priorize enriquecimento dos top devedores incontactáveis.'
+  },
+  'Mapa de qualidade de dados por canal': {
+    what: 'Heatmap cruzando tributo × canal de contato.',
+    read: 'Células verdes (>50%) = boa cobertura. Amarelas (30-50%) = moderada. <b>Vermelhas (<30%) = gap crítico</b>.',
+    action: 'Tributos com score baixo precisam de enriquecimento antes de qualquer campanha. Priorize: alto valor E baixa cobertura.'
+  },
+  'Reincidência vs primeiro débito': {
+    what: 'Separa os contribuintes em três perfis: reincidente que já pagou, primeiro débito, reincidente que só parcelou.',
+    read: '<b>Reincidente que já pagou = melhor target</b>. Já demonstrou capacidade e disposição de pagamento.',
+    action: 'Priorize reincidentes que já pagaram — maior probabilidade de conversão. Para quem só parcelou: planos menores e desconto por antecipação.'
+  },
+  'Curva de sobrevivência do parcelamento': {
+    what: 'Mostra o percentual de parcelamentos que continuam sendo pagos a cada parcela.',
+    read: '<b>A parcela onde a curva cai abruptamente é o "ponto de abandono"</b>.',
+    action: 'Quebra alta na 4ª parcela → ofereça planos de 3-6x. Use a elasticidade de desconto (~25%) para incentivar conclusão.'
+  },
+  'Histórico de parcelamento por programa': {
+    what: 'Compara os programas de parcelamento anteriores em termos de adesão e taxa de conclusão.',
+    read: '<b>Taxa de conclusão > 55% = programa bem desenhado</b>.',
+    action: 'Use a taxa de conclusão histórica como premissa nos cenários. REFIS que converte mais → sugira campanha com condições especiais.'
+  },
+  'Concentração geográfica': {
+    what: 'Mostra como a inadimplência está distribuída geograficamente.',
+    read: '<b>Regiões com inadimplência acima de 50% = problema estrutural</b>.',
+    action: 'Regiões com alta concentração de valor E alta inadimplência = candidatas a mutirão presencial. Next-best-action confirma isso para Morro Branco e Sucatinga.'
+  },
+  'Projeção de cenários': {
+    what: 'Compara três cenários de recuperação com premissas distintas. Adesão modelada com decay mensal — decresce conforme meses avançam, não é fixa.',
+    read: '<b>Payback é o mês onde a recuperação cumulativa cobre o custo operacional</b>. Moderado em M3 é o melhor equilíbrio risco/retorno.',
+    action: 'Recomende o Moderado como base. Ajuste para o desconto ótimo de ~25% para maximizar valor líquido versus adesão bruta.'
+  },
+  'Recuperação cumulativa mês a mês (referência — calibrar com Aba 4)': {
+    what: 'Projeta a recuperação acumulada com curvas de decay. Os parâmetros de decay são referências de mercado — não calibrados com os dados históricos desta carteira. A estrela (★) marca o mês de payback.',
+    read: '<b>Atenção: as curvas são ilustrativas até calibração.</b> Para calibrar, use o decay real observado nas safras da Aba 4 e ajuste os parâmetros. A inclinação nos primeiros meses é o indicador crítico — curva que achata cedo indica esforço incremental que não compensa.',
+    action: 'Não use os valores absolutos das curvas como projeção definitiva para proposta comercial sem calibração prévia. Use o formato das curvas para argumentar o conceito de decay com o gestor; use os dados reais da Aba 4 para construir a projeção calibrada.'
+  },
+  'Fluxo de entrada vs recuperação': {
+    what: 'Mostra o volume mensal de novas CDAs inscritas versus CDAs recuperadas nos últimos 12 meses. Revela se a carteira está crescendo ou se a operação está ganhando do problema.',
+    read: '<b>Barras acima da linha = mais CDAs entrando do que saindo</b>. Se a entrada supera sistematicamente a recuperação, o problema estrutural não fecha independente da qualidade da operação.',
+    action: 'Use este gráfico para argumentar com o cliente sobre a necessidade de ajustar o processo de inscrição — não apenas operar a carteira existente. Se o saldo líquido é positivo (mais entrada que recuperação), o ROI da operação precisa ser calculado sobre o crescimento projetado, não apenas o estoque atual.'
+  },
+  'Sazonalidade de inscrição e recuperação': {
+    what: 'Mostra a distribuição mensal média de CDAs inscritas e recuperadas ao longo do ano. Revela o timing natural da carteira — quando ela cresce e quando o contribuinte é mais receptivo a negociar.',
+    read: '<b>Pico de inscrição em mar/abr</b> = IPTU vencido. <b>Pico em out/nov</b> = ISS segundo semestre. <b>Pico de recuperação em fev/mar</b> = campanha de início de ano (13º salário). <b>Pico em julho</b> = férias e 13º antecipado. Meses sem pico = baixa receptividade natural.',
+    action: 'Planeje campanhas para coincidir com os picos de recuperação histórica. Lançar campanha em setembro — quando não há pico de recuperação e há pico de inscrição chegando — é timing ruim. Use a sazonalidade para justificar o mês de início da operação ao gestor.'
+  },
+  'Comportamento pós-campanha por cohort': {
+    what: 'Rastreia o que aconteceu com os contribuintes depois de cada programa de parcelamento — quantos concluíram, quebraram, voltaram para a carteira e foram reabordados com sucesso em campanhas subsequentes.',
+    read: '<b>Taxa de reabordagem com sucesso é o indicador mais importante</b>. Um contribuinte que quebrou o REFIS 2022 mas foi reabordado com sucesso em 62% dos casos tem perfil completamente diferente de quem quebrou o REFIS 2023 com apenas 32% de reabordagem. O perfil dominante de cada campanha define a estratégia para a próxima.',
+    action: 'Antes de qualquer campanha, verifique quantos contribuintes-alvo participaram de campanhas anteriores e qual foi o comportamento pós-campanha deles. Quem quebrou crônico precisa de abordagem diferente (parcelas menores, prazo menor, canal diferente). Reincidente pagador é o target primário.'
+  },
+  'ROI por cenário': {
+    what: 'Compara o retorno sobre investimento de cada cenário.',
+    read: '<b>ROI > 5:1 é excelente para cobrança de dívida ativa</b>. O Conservador sempre tem ROI mais alto pois foca no mais fácil.',
+    action: 'Apresente os três ROIs ao gestor. Use o ROI como argumento principal na proposta comercial.'
+  },
+  'Elasticidade de desconto': {
+    what: 'Mostra a relação entre o nível de desconto em juros/multa, a taxa de adesão projetada e o valor líquido recuperado resultante. A linha pontilhada vertical marca o desconto ótimo.',
+    read: 'A taxa de adesão cresce monotonicamente com o desconto. O valor líquido forma uma curva em U invertido — sobe até o <b>desconto ótimo (~25%)</b>, depois cai porque o desconto excessivo corrói a receita mesmo com mais devedores pagando.',
+    action: 'Calibre a oferta de desconto em juros/multa no entorno de 25% para maximizar o valor líquido recuperado. Descontos acima de 35% aumentam volume mas reduzem receita — use apenas para CDAs próximos da prescrição.'
+  }
+};
+
+document.querySelectorAll('.chart-header').forEach(function(header){
+  var titleEl = header.querySelector('.chart-title');
+  if(!titleEl) return;
+  var title = titleEl.textContent.trim();
+  var help = helpData[title];
+  if(!help) return;
+  var btn = document.createElement('button');
+  btn.className = 'help-btn';
+  btn.textContent = '?';
+  btn.title = 'Como interpretar';
+  header.appendChild(btn);
+  var panel = document.createElement('div');
+  panel.className = 'help-panel';
+  panel.innerHTML = '<div class="help-title">Guia de interpretação</div>'
+    + '<div class="help-section"><b>O que mostra:</b> <span class="help-what">' + help.what + '</span></div>'
+    + '<div class="help-section"><b>Como ler:</b> <span class="help-read">' + help.read + '</span></div>'
+    + '<div class="help-action"><b>Ação recomendada:</b> ' + help.action + '</div>';
+  var card = header.closest('.chart-card');
+  if(card) card.insertBefore(panel, header.nextSibling);
+  btn.addEventListener('click', function(){
+    var isOpen = panel.classList.contains('open');
+    document.querySelectorAll('.help-panel.open').forEach(function(p){ p.classList.remove('open'); });
+    document.querySelectorAll('.help-btn.open').forEach(function(b){ b.classList.remove('open'); });
+    if(!isOpen){ panel.classList.add('open'); btn.classList.add('open'); }
+  });
+});
+</script>
+</body>
+</html>
