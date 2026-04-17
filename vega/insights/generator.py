@@ -1,7 +1,9 @@
-"""Geração de insights via OpenAI por aba."""
+"""Geração de insights via ChatGPT (session token) ou OpenAI API (fallback)."""
 from __future__ import annotations
 
+import json
 import os
+import uuid
 
 _MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 _SYSTEM = (
@@ -9,10 +11,74 @@ _SYSTEM = (
     "Responda sempre em português. Seja direto e use os números fornecidos."
 )
 
+_CONVERSATION_URL = "https://chat.openai.com/backend-api/conversation"
+_HEADERS_BASE = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Origin": "https://chat.openai.com",
+    "Referer": "https://chat.openai.com/",
+}
 
-def _completar(prompt: str) -> str:
+
+def _completar_via_access_token(prompt: str, access_token: str) -> str:
+    import httpx
+
+    payload = {
+        "action": "next",
+        "messages": [{
+            "id": str(uuid.uuid4()),
+            "author": {"role": "user"},
+            "content": {
+                "content_type": "text",
+                "parts": [f"{_SYSTEM}\n\n{prompt}"],
+            },
+        }],
+        "model": _MODEL,
+        "timezone_offset_min": -180,
+        "history_and_training_disabled": True,
+        "conversation_mode": {"kind": "primary_assistant"},
+    }
+    headers = {
+        **_HEADERS_BASE,
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+    }
+
+    resultado = ""
+    with httpx.Client(timeout=90) as client:
+        with client.stream("POST", _CONVERSATION_URL, json=payload, headers=headers) as resp:
+            if resp.status_code == 401:
+                raise RuntimeError(
+                    "Token expirado. Execute novamente: python scripts/auth_chatgpt.py"
+                )
+            resp.raise_for_status()
+            for linha in resp.iter_lines():
+                if not linha.startswith("data: "):
+                    continue
+                dados = linha[6:]
+                if dados == "[DONE]":
+                    break
+                try:
+                    partes = (
+                        json.loads(dados)
+                        .get("message", {})
+                        .get("content", {})
+                        .get("parts", [])
+                    )
+                    if partes and isinstance(partes[0], str):
+                        resultado = partes[0]
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
+    return resultado or "Resposta vazia recebida do ChatGPT."
+
+
+def _completar_via_api(prompt: str, api_key: str) -> str:
     from openai import OpenAI
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    client = OpenAI(api_key=api_key)
     resp = client.chat.completions.create(
         model=_MODEL,
         messages=[
@@ -22,6 +88,19 @@ def _completar(prompt: str) -> str:
         max_tokens=800,
     )
     return resp.choices[0].message.content
+
+
+def _completar(prompt: str) -> str:
+    access_token = os.environ.get("CHATGPT_ACCESS_TOKEN")
+    if access_token:
+        return _completar_via_access_token(prompt, access_token)
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        return _completar_via_api(prompt, api_key)
+    raise RuntimeError(
+        "Configure CHATGPT_ACCESS_TOKEN (recomendado) "
+        "ou OPENAI_API_KEY no .env para gerar insights."
+    )
 
 
 def gerar_insights_diagnostico(metricas: dict) -> str:
@@ -133,8 +212,13 @@ class InsightGenerator:
     }
 
     def gerar(self, aba: int, metricas: dict) -> str:
-        if not os.environ.get("OPENAI_API_KEY"):
-            return "Configure OPENAI_API_KEY para gerar insights com IA."
+        tem_access_token = bool(os.environ.get("CHATGPT_ACCESS_TOKEN"))
+        tem_api_key = bool(os.environ.get("OPENAI_API_KEY"))
+        if not tem_access_token and not tem_api_key:
+            return (
+                "Configure CHATGPT_ACCESS_TOKEN (recomendado) "
+                "ou OPENAI_API_KEY no .env para gerar insights."
+            )
         fn = self._FUNCS.get(aba)
         if fn is None:
             return f"Aba {aba} não suportada."

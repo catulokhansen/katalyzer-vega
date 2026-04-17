@@ -4,5 +4,6 @@ pandas
 psycopg2-binary
 alembic
 openai
+httpx
 python-dotenv
 pytest
