@@ -71,6 +71,58 @@ O schema `vega` é criado automaticamente pelo `env.py` (ou via
 
 ---
 
+## Rodando com dados reais
+
+Por padrão o app sobe em `DEMO_MODE=true` com fixtures estáticos.
+Para usar o banco PostgreSQL real:
+
+**1. Garanta que o banco está rodando e as migrations aplicadas:**
+
+```bash
+# PostgreSQL via Docker
+docker compose up -d postgres
+alembic upgrade head
+
+# Ou PostgreSQL local (snap/pacote) — confirme que está rodando:
+pg_isready -h localhost -p 5432
+alembic upgrade head
+```
+
+**2. Crie os dados de demonstração (Beberibe CE):**
+
+```bash
+source venv/bin/activate
+python scripts/seed_demo.py
+# Imprime: carteira_id=X  sessao_id=Y
+```
+
+O seed:
+- Cria uma carteira (Beberibe/CE) + sessão com parâmetros default
+- Carrega `tests/fixtures/carteira_teste.csv` (25 CDAs)
+- Roda higienização, segmentação e scoring completos
+- Popula `fluxo_mensal` (12 meses) e `cohorts_campanha` (4 programas)
+
+**3. Troque para DEMO_MODE=false no `.env`:**
+
+```bash
+# .env
+DEMO_MODE=false
+DATABASE_URL=postgresql://vega:vega@localhost:5432/katalyzer_vega
+OPENAI_API_KEY=sk-...   # opcional — apenas para geração de insights
+```
+
+**4. Suba o app:**
+
+```bash
+python -m vega.app.app
+# → http://localhost:8050
+```
+
+O app carrega automaticamente a carteira mais recente do banco.
+O badge "DEMO MODE ATIVO" some quando `DEMO_MODE=false`.
+
+---
+
 ## Testes
 
 ```bash

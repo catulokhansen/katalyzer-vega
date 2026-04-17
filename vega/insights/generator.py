@@ -117,3 +117,25 @@ Dados:
 {metricas}
 """
     return _completar(prompt)
+
+
+class InsightGenerator:
+    """Ponto único para gerar insights de qualquer aba via índice."""
+
+    _FUNCS = {
+        0: gerar_insights_diagnostico,
+        1: gerar_insights_segmentacao,
+        2: gerar_insights_scoring,
+        3: gerar_insights_safra_aging,
+        4: gerar_insights_contactabilidade,
+        5: gerar_insights_historico,
+        6: gerar_insights_cenarios,
+    }
+
+    def gerar(self, aba: int, metricas: dict) -> str:
+        if not os.environ.get("OPENAI_API_KEY"):
+            return "Configure OPENAI_API_KEY para gerar insights com IA."
+        fn = self._FUNCS.get(aba)
+        if fn is None:
+            return f"Aba {aba} não suportada."
+        return fn(metricas)

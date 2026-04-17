@@ -476,8 +476,8 @@ def metricas_safra(carteira_id: int) -> pd.DataFrame:
                 h.safra,
                 h.dias_para_prescricao,
                 h.prescricao_interrompida,
-                EXTRACT(EPOCH FROM (CURRENT_DATE - b.data_inscricao))
-                    / 86400.0 / 365.25                       AS idade_anos
+                (CURRENT_DATE - b.data_inscricao)::float
+                    / 365.25                                 AS idade_anos
             FROM vega.cdas_higienizadas h
             JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
             WHERE h.carteira_id = %(carteira_id)s
@@ -849,11 +849,11 @@ def metricas_historico(carteira_id: int) -> pd.DataFrame:
         quebras AS (
             SELECT
                 COALESCE(
-                    ROUND(AVG(quebraram::FLOAT / NULLIF(aderiram, 0)) * 100, 1),
+                    ROUND((AVG(quebraram::FLOAT / NULLIF(aderiram, 0)) * 100)::numeric, 1),
                     0
                 )                                       AS taxa_quebra_media,
                 COALESCE(
-                    ROUND(AVG(parcelas_maximas::FLOAT / 2.0), 1),
+                    ROUND(AVG(parcelas_maximas::FLOAT / 2.0)::numeric, 1),
                     0
                 )                                       AS parcela_media_quebra
             FROM vega.cohorts_campanha

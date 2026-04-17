@@ -410,7 +410,7 @@ def _btn_insights() -> html.Div:
                 "cursor": "pointer",
             },
         ),
-        html.Div(id="insights-result-3", style={"marginTop": 12}),
+        dcc.Loading(type="dot", color="#7B2CBF", style={"marginTop": 12}, children=html.Div(id="insights-result-3")),
     ], style=_CARD)
 
 

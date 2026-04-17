@@ -398,7 +398,7 @@ def _btn_insights() -> html.Div:
                 "marginBottom": 12,
             },
         ),
-        html.Div(id="insights-result-0"),
+        dcc.Loading(type="dot", color=VIOLET, children=html.Div(id="insights-result-0")),
     ])
 
 
@@ -641,6 +641,21 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
         # 8 + 9 + 10. Tabela top contribuintes + nota NBA + alerta concentração
         _tabela_top_contribuintes(df_top, conc),
 
+        # Exportação CSV
+        html.Div([
+            html.Button(
+                "⬇ Exportar lista de ações (CSV)",
+                id="btn-exportar-csv",
+                n_clicks=0,
+                style={
+                    "padding": "7px 14px", "background": "#fff",
+                    "border": f"1px solid #E5E7EB", "borderRadius": 6,
+                    "fontSize": 11, "fontWeight": 500, "color": DELFT, "cursor": "pointer",
+                },
+            ),
+            dcc.Download(id="download-acao-csv"),
+        ], style={"marginBottom": 12, "textAlign": "right"}),
+
         # 11. KPIs de fluxo
         _kpis_fluxo(df_fluxo),
 
@@ -725,3 +740,33 @@ def registrar_callbacks(app: Any) -> None:
         if not n_clicks:
             raise PreventUpdate
         return "cenarios"
+
+    @app.callback(
+        Output("download-acao-csv", "data"),
+        Input("btn-exportar-csv",   "n_clicks"),
+        State("store-carteira-id",  "data"),
+        State("store-sessao-id",    "data"),
+        prevent_initial_call=True,
+    )
+    def exportar_csv(n_clicks: int, carteira_id: int | None, sessao_id: int | None) -> dict:
+        if not n_clicks:
+            raise PreventUpdate
+        if _is_demo():
+            df = _mock_top_contribuintes()
+        else:
+            from vega.db import queries
+            df = queries.top_contribuintes(carteira_id, sessao_id)
+
+        export_df = pd.DataFrame({
+            "contribuinte_nome": df["contribuinte_nome"],
+            "tipo":              df["contribuinte_tipo"],
+            "cdas":              df["count_cdas"],
+            "valor":             df["valor_total_cents"].apply(lambda c: _fmt_reais(int(c))),
+            "densidade":         df["densidade_cents"].apply(lambda c: _fmt_reais(int(c))),
+            "padrao":            df["padrao_densidade"],
+            "quadrante":         df["quadrante"],
+            "score":             df["score_total"],
+            "acao_sugerida":     df["acao_sugerida"],
+        })
+        csv_string = export_df.to_csv(index=False, encoding="utf-8")
+        return dict(content=csv_string, filename="acoes_sugeridas.csv", type="text/csv")
