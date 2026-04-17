@@ -61,7 +61,7 @@ katalyzer-vega/
 │   │   └── column_mapping.py     # Mapeamento de nomes de coluna
 │   ├── db/
 │   │   ├── connection.py         # get_conn() — psycopg2 connection pool
-│   │   ├── migrations/           # Alembic — numeradas 001_ a 009_
+│   │   ├── migrations/           # Alembic — numeradas 001_ a 010_
 │   │   └── queries.py            # Queries analíticas por aba — SQL puro + pd.read_sql
 │   ├── insights/
 │   │   └── generator.py          # Chamada OpenAI para geração de insights por aba
@@ -245,6 +245,9 @@ Se algum contribuinte representa > 10% da carteira ativa, exibir card de alerta 
 **RN-08 — NBA é sugestão, não prescrição**
 A coluna "Ação Sugerida" sempre com ícone `!` prefixado e badge âmbar. Sempre com nota abaixo da tabela explicando que são sugestões determinísticas. Nunca usar linguagem de obrigação.
 
+**RN-09 — Alerta de Q1 excessivamente grande**
+Se Q1 contém >18% dos contribuintes ativos, exibir alerta âmbar na Aba 3 com recomendação de elevar thresholds ou segmentar Q1 em ondas. Capacidade operacional típica de equipe de cobrança municipal é 8–15% da carteira. O alerta é mutuamente exclusivo com o alerta de Q1 vazio.
+
 ---
 
 ## Pipeline — sequência obrigatória
@@ -259,9 +262,11 @@ Quando os parâmetros de higienização mudam (valor mínimo ou prazo de prescri
 
 ---
 
-## Score v1 — deve ser idêntico ao Órion Rails
+## Score v1 (Priority Index v1) — deve ser idêntico ao Órion Rails
 
 O `ScorerV1` em `pipeline/scoring.py` deve produzir exatamente os mesmos resultados que a engine Score do Katalyzer Órion (Ruby). Se encontrar divergência: **pare e reporte ao tech lead antes de corrigir.**
+
+> **Nota terminológica (v1.1):** Score v1 é tecnicamente um **Priority Index** — índice ordinal de priorização, não um score estatístico de probabilidade de pagamento. Mantido o nome "Score" por familiaridade de mercado. Nunca apresentar como probabilidade. Score v2 (LightGBM supervisionado) é o objetivo após 6–12 meses de dados operacionais.
 
 ```python
 # Referência rápida das faixas de dim_valor (peso default 30):
@@ -278,6 +283,21 @@ O `ScorerV1` em `pipeline/scoring.py` deve produzir exatamente os mesmos resulta
 
 # dim_comportamento (proxy por status_da, peso default 25):
 # reincidente_pagador=18 | so_parcelou=14 | primeiro_debito=10
+
+# NBA Q3 — sub-categorias v1.1 (scoring.py _derivar_acao_sugerida):
+# Q3a: status in (baixado, falecido, cancelado) → "Baixa técnica — irrecuperável"
+# Q3c: prescricao_interrompida=True           → "Monitorar — prescrição já interrompida"
+# Q3d: dias_para_prescricao < 365             → "Protesto urgente — prescrição em 12 meses"
+# Q3b: demais casos viáveis                   → "Protesto em cartório" (custo zero via IEPTB)
+```
+
+```python
+# Decay v1.1 — rates realistas com ceiling (simulacao.py):
+# decay_curve(valor_alvo_cents, rate, ceiling, meses=12)
+# Conservador: rate=0.04, ceiling=0.22  → ~8% do valor-alvo em 12m
+# Moderado:    rate=0.06, ceiling=0.32  → ~16% do valor-alvo em 12m
+# Agressivo:   rate=0.08, ceiling=0.42  → ~26% do valor-alvo em 12m
+# Colunas em sessoes_analise: ceiling_conservador/moderado/agressivo (migration 010)
 ```
 
 ---
@@ -348,6 +368,7 @@ def carregar_aba_diagnostico(tab_ativa, carteira_id):
 - Não carregar todas as abas simultaneamente no mount — lazy loading obrigatório
 - Não acessar o banco PostgreSQL do Órion — o Vega tem banco próprio
 - Não usar a LLM para calcular valores financeiros — só para interpretar métricas já calculadas
+- Não modificar rates ou ceilings de decay sem confirmar que a trava de sanidade está ativa (`_validar_sanidade_cenarios` em `tab_cenarios.py`) — cenários acima de 50% do valor ativo em 12m requerem justificativa explícita do analista
 
 ---
 

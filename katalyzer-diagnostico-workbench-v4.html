@@ -800,7 +800,7 @@ var insightData = {
     badge: '3 insights',
     items: [
       { icon: 'ii-opp', emoji: '+', title: 'Q1 com thresholds absolutos é mais cirúrgico', desc: 'Com threshold Prioridade ≥ 40 + Recuperabilidade ≥ 30, o Q1 (<b>847 contribuintes</b>) garante que todos atendem um patamar mínimo — não apenas estão acima da mediana. <b>73% contactáveis digitalmente</b>. Cruzando com next-best-action: 82% têm ação automática definida.', tags: ['Q1 threshold','Contactab.','Next-best-action'] },
-      { icon: 'ii-alert', emoji: '!', title: 'Q3 tem valor preso + ação recomendada protesto', desc: '<b>R$ 5,9M no Q3</b>. Next-best-action: protesto em cartório para os de maior valor. Interrompendo a prescrição via protesto, <b>R$ 1,8M migram do bruto para o líquido prescrevendo</b>.', tags: ['Q3','Protesto','Prescrição interrompida'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Q3 tem valor preso — protesto é gratuito via convênio', desc: '<b>R$ 5,9M no Q3</b>. Para municípios via Órion, protesto extrajudicial é gratuito (convênio IEPTB — custo pago pelo devedor na regularização). Next-best-action por sub-categoria: CDAs prescrevendo em 12m → "Protesto urgente"; com prescrição já interrompida → "Monitorar"; baixados/cancelados → "Baixa técnica". Interrompendo prescrição via protesto, <b>R$ 1,8M migram do bruto para o líquido prescrevendo</b>.', tags: ['Q3','Protesto IEPTB','Sub-categoria NBA'] },
       { icon: 'ii-action', emoji: '>', title: 'Redistribuição de esforço recomendada', desc: 'Q4 consome atenção de <b>36% dos contribuintes para 9% do valor</b>. Proposta: zerar esforço ativo no Q4, realocar para enriquecimento do Q3 e intensificação do Q1. Resultado projetado: <b>+R$ 1,8M</b> de valor atingível.', tags: ['Q4','Realocação','Eficiência'] }
     ]
   },
@@ -841,7 +841,7 @@ var insightData = {
     items: [
       { icon: 'ii-alert', emoji: '!', title: 'Cenário precisa de versão sem Construtora Litoral', desc: 'A Construtora representa <b>10,8% da carteira</b>. Qualquer projeção apresentada ao cliente deve ter duas versões: com e sem ela. Cenário Moderado sem a Construtora: R$ 3,2M → R$ 2,9M — ainda bom, mas honesto.', tags: ['Concentração','Risco','Cenário duplo'] },
       { icon: 'ii-opp', emoji: '+', title: 'Cenário cirúrgico com desconto ótimo supera todos', desc: 'Q1 reincidentes via WhatsApp (R$ 7,6M) + top 100 do Q3 pós-enriquecimento (R$ 3,2M) + CDAs prescrevendo líquidos (R$ 1,1M) + desconto 25% (ótimo da elasticidade). <b>ROI projetado: 21,7:1</b>. Calibrar decay com Aba 4 antes de usar em proposta.', tags: ['Cirúrgico','Elasticidade','ROI 21:1'] },
-      { icon: 'ii-alert', emoji: '!', title: 'Curvas de decay são referência — não projeção calibrada', desc: 'Os parâmetros de decay (0.9/0.55/0.38) são benchmarks de mercado. Antes de incluir qualquer projeção em proposta comercial, calibre com o decay real das safras desta carteira (Aba 4 → Decay de recuperação por safra).', tags: ['Decay','Calibração','Aba 4'] },
+      { icon: 'ii-alert', emoji: '!', title: 'Curvas de decay são referência — não projeção calibrada', desc: 'Os parâmetros de decay (v1.1: rates 0.04/0.06/0.08 com ceiling 22%/32%/42%) são benchmarks de mercado. Projeções: ~8%/~16%/~26% do valor-alvo em 12 meses. Antes de incluir qualquer projeção em proposta comercial, calibre com o decay real das safras desta carteira (Aba 4 → Decay de recuperação por safra).', tags: ['Decay','Calibração','Aba 4'] },
       { icon: 'ii-action', emoji: '>', title: 'Recomendação final de operação em 3 ondas', desc: '<b>Onda 1 (0-90 dias):</b> Cenário cirúrgico + sazonalidade fev/mar. <b>Onda 2 (90-180 dias):</b> Expansão Q2 via Regulariza com desconto 25%. <b>Onda 3 (180+ dias):</b> Enriquecimento Q3 + mutirão Morro Branco/Sucatinga.', tags: ['Roadmap','3 ondas','Sazonalidade'] }
     ]
   }
@@ -990,8 +990,8 @@ var helpData = {
   },
   'Projeção de cenários': {
     what: 'Compara três cenários de recuperação com premissas distintas. Adesão modelada com decay mensal — decresce conforme meses avançam, não é fixa.',
-    read: '<b>Payback é o mês onde a recuperação cumulativa cobre o custo operacional</b>. Moderado em M3 é o melhor equilíbrio risco/retorno.',
-    action: 'Recomende o Moderado como base. Ajuste para o desconto ótimo de ~25% para maximizar valor líquido versus adesão bruta.'
+    read: '<b>Payback é o mês onde a recuperação cumulativa cobre o custo operacional</b>. Moderado em M3 é o melhor equilíbrio risco/retorno. O custo operacional do município é predominantemente SaaS fixo + custo humano — não variável por CDA. Protesto extrajudicial via convênio IEPTB não consome orçamento direto do município.',
+    action: 'Recomende o Moderado como base. Ajuste para o desconto ótimo de ~25% para maximizar valor líquido versus adesão bruta. Ao apresentar para o gestor: destaque que escalar de conservador para agressivo não aumenta custo marginal — favorece o cenário agressivo em carteiras bem enriquecidas.'
   },
   'Recuperação cumulativa mês a mês (referência — calibrar com Aba 4)': {
     what: 'Projeta a recuperação acumulada com curvas de decay. Os parâmetros de decay são referências de mercado — não calibrados com os dados históricos desta carteira. A estrela (★) marca o mês de payback.',
