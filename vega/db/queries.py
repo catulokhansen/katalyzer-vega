@@ -639,3 +639,377 @@ def sazonalidade(carteira_id: int) -> pd.DataFrame:
     """
     with get_conn() as conn:
         return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+# ── Aba 5 — Contactabilidade ──────────────────────────────────────────────────
+
+def metricas_contactabilidade(carteira_id: int) -> pd.DataFrame:
+    """KPIs da Aba 5: distribuição de contactabilidade e valor incontactável.
+
+    Retorna uma linha com: pct_contactaveis, pct_so_endereco,
+    pct_incontactaveis, valor_incontactavel_cents.
+    """
+    sql = """
+        WITH ativas AS (
+            SELECT
+                h.valor_corrigido_cents,
+                CASE
+                    WHEN b.celular    IS NOT NULL
+                      OR b.whatsapp   IS NOT NULL
+                      OR b.email      IS NOT NULL
+                      OR b.telefone   IS NOT NULL THEN 'contactavel'
+                    WHEN b.logradouro IS NOT NULL  THEN 'so_endereco'
+                    ELSE                                'incontactavel'
+                END AS nivel
+            FROM vega.cdas_higienizadas h
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        ),
+        totais AS (
+            SELECT
+                COUNT(*)                                                    AS n,
+                SUM(CASE WHEN nivel = 'incontactavel'
+                         THEN valor_corrigido_cents ELSE 0 END)             AS valor_incontactavel_cents
+            FROM ativas
+        )
+        SELECT
+            ROUND(100.0 * COUNT(*) FILTER (WHERE a.nivel = 'contactavel')
+                  / NULLIF(t.n, 0), 1)                                      AS pct_contactaveis,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE a.nivel = 'so_endereco')
+                  / NULLIF(t.n, 0), 1)                                      AS pct_so_endereco,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE a.nivel = 'incontactavel')
+                  / NULLIF(t.n, 0), 1)                                      AS pct_incontactaveis,
+            t.valor_incontactavel_cents
+        FROM ativas a
+        CROSS JOIN totais t
+        GROUP BY t.n, t.valor_incontactavel_cents
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def cobertura_por_canal(carteira_id: int) -> pd.DataFrame:
+    """Cobertura de contacto por canal nas CDAs ativas.
+
+    Retorna: canal, pct_cobertura (5 linhas: celular, whatsapp, email, telefone, endereco).
+    """
+    sql = """
+        WITH ativas AS (
+            SELECT
+                (b.celular    IS NOT NULL)::INT AS tem_celular,
+                (b.whatsapp   IS NOT NULL)::INT AS tem_whatsapp,
+                (b.email      IS NOT NULL)::INT AS tem_email,
+                (b.telefone   IS NOT NULL)::INT AS tem_telefone,
+                (b.logradouro IS NOT NULL)::INT AS tem_endereco
+            FROM vega.cdas_higienizadas h
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        ),
+        agg AS (
+            SELECT
+                COUNT(*)          AS n,
+                SUM(tem_celular)  AS n_celular,
+                SUM(tem_whatsapp) AS n_whatsapp,
+                SUM(tem_email)    AS n_email,
+                SUM(tem_telefone) AS n_telefone,
+                SUM(tem_endereco) AS n_endereco
+            FROM ativas
+        )
+        SELECT canal, pct_cobertura
+        FROM agg
+        CROSS JOIN LATERAL (
+            VALUES
+                ('celular',  ROUND(100.0 * n_celular  / NULLIF(n, 0), 1)),
+                ('whatsapp', ROUND(100.0 * n_whatsapp / NULLIF(n, 0), 1)),
+                ('email',    ROUND(100.0 * n_email    / NULLIF(n, 0), 1)),
+                ('telefone', ROUND(100.0 * n_telefone / NULLIF(n, 0), 1)),
+                ('endereco', ROUND(100.0 * n_endereco / NULLIF(n, 0), 1))
+        ) AS t(canal, pct_cobertura)
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def contactabilidade_por_faixa(carteira_id: int) -> pd.DataFrame:
+    """Valor ativo por faixa_valor × nível de contacto agrupado.
+
+    Retorna: faixa_valor, nivel_contato_agrupado, valor_cents.
+    nivel_contato_agrupado: 'digital', 'so_endereco', 'incontactavel'.
+    """
+    sql = """
+        SELECT
+            h.faixa_valor,
+            CASE
+                WHEN b.celular    IS NOT NULL
+                  OR b.whatsapp   IS NOT NULL
+                  OR b.email      IS NOT NULL
+                  OR b.telefone   IS NOT NULL THEN 'digital'
+                WHEN b.logradouro IS NOT NULL  THEN 'so_endereco'
+                ELSE                                'incontactavel'
+            END                                   AS nivel_contato_agrupado,
+            SUM(h.valor_corrigido_cents)           AS valor_cents
+        FROM vega.cdas_higienizadas h
+        JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+          AND h.faixa_valor IS NOT NULL
+        GROUP BY h.faixa_valor, nivel_contato_agrupado
+        ORDER BY
+            CASE h.faixa_valor
+                WHEN 'ate_500'   THEN 1
+                WHEN '500_2k'    THEN 2
+                WHEN '2k_10k'    THEN 3
+                WHEN '10k_50k'   THEN 4
+                WHEN 'acima_50k' THEN 5
+                ELSE 9
+            END,
+            nivel_contato_agrupado
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def heatmap_qualidade(carteira_id: int) -> pd.DataFrame:
+    """Cobertura de contacto por canal × tributo.
+
+    Retorna: tributo, canal, pct_cobertura.
+    """
+    sql = """
+        WITH ativas AS (
+            SELECT
+                b.tributo,
+                (b.celular    IS NOT NULL)::INT AS tem_celular,
+                (b.whatsapp   IS NOT NULL)::INT AS tem_whatsapp,
+                (b.email      IS NOT NULL)::INT AS tem_email,
+                (b.telefone   IS NOT NULL)::INT AS tem_telefone,
+                (b.logradouro IS NOT NULL)::INT AS tem_endereco
+            FROM vega.cdas_higienizadas h
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        ),
+        agg AS (
+            SELECT
+                tributo,
+                COUNT(*)          AS n,
+                SUM(tem_celular)  AS n_celular,
+                SUM(tem_whatsapp) AS n_whatsapp,
+                SUM(tem_email)    AS n_email,
+                SUM(tem_telefone) AS n_telefone,
+                SUM(tem_endereco) AS n_endereco
+            FROM ativas
+            GROUP BY tributo
+        )
+        SELECT tributo, canal, pct_cobertura
+        FROM agg
+        CROSS JOIN LATERAL (
+            VALUES
+                ('celular',  ROUND(100.0 * n_celular  / NULLIF(n, 0), 1)),
+                ('whatsapp', ROUND(100.0 * n_whatsapp / NULLIF(n, 0), 1)),
+                ('email',    ROUND(100.0 * n_email    / NULLIF(n, 0), 1)),
+                ('telefone', ROUND(100.0 * n_telefone / NULLIF(n, 0), 1)),
+                ('endereco', ROUND(100.0 * n_endereco / NULLIF(n, 0), 1))
+        ) AS t(canal, pct_cobertura)
+        ORDER BY tributo, canal
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+# ── Aba 6 — Histórico ─────────────────────────────────────────────────────────
+
+def metricas_historico(carteira_id: int) -> pd.DataFrame:
+    """KPIs da Aba 6: reincidência e quebra de parcelamento.
+
+    Retorna uma linha com: pct_reincidentes, valor_reincidentes_cents,
+    taxa_quebra_media, parcela_media_quebra.
+
+    Reincidente = CDA com data_parcelamento registrado (proxy: já voltou à carteira).
+    taxa_quebra_media e parcela_media_quebra derivados de cohorts_campanha.
+    """
+    sql = """
+        WITH ativas AS (
+            SELECT
+                h.valor_corrigido_cents,
+                (b.data_parcelamento IS NOT NULL) AS reincidente
+            FROM vega.cdas_higienizadas h
+            JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        ),
+        totais AS (
+            SELECT
+                COUNT(*)                                                    AS n,
+                COUNT(*) FILTER (WHERE reincidente)                         AS n_reincid,
+                SUM(valor_corrigido_cents) FILTER (WHERE reincidente)       AS v_reincid
+            FROM ativas
+        ),
+        quebras AS (
+            SELECT
+                COALESCE(
+                    ROUND(AVG(quebraram::FLOAT / NULLIF(aderiram, 0)) * 100, 1),
+                    0
+                )                                       AS taxa_quebra_media,
+                COALESCE(
+                    ROUND(AVG(parcelas_maximas::FLOAT / 2.0), 1),
+                    0
+                )                                       AS parcela_media_quebra
+            FROM vega.cohorts_campanha
+            WHERE carteira_id = %(carteira_id)s
+              AND quebraram > 0
+        )
+        SELECT
+            ROUND(100.0 * t.n_reincid / NULLIF(t.n, 0), 1)  AS pct_reincidentes,
+            COALESCE(t.v_reincid, 0)                          AS valor_reincidentes_cents,
+            q.taxa_quebra_media,
+            q.parcela_media_quebra
+        FROM totais t
+        CROSS JOIN quebras q
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def reincidencia_por_tipo(carteira_id: int) -> pd.DataFrame:
+    """Valor ativo por tipo de comportamento do devedor.
+
+    Retorna: tipo, valor_cents.
+    Tipos: reincidente_pagador, so_parcelou, primeiro_debito.
+    """
+    sql = """
+        SELECT
+            CASE
+                WHEN b.data_parcelamento IS NOT NULL
+                 AND b.data_protesto     IS NOT NULL THEN 'reincidente_pagador'
+                WHEN b.data_parcelamento IS NOT NULL
+                 AND b.data_protesto     IS NULL     THEN 'so_parcelou'
+                ELSE                                      'primeiro_debito'
+            END                           AS tipo,
+            SUM(h.valor_corrigido_cents)  AS valor_cents
+        FROM vega.cdas_higienizadas h
+        JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+        GROUP BY tipo
+        ORDER BY tipo
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def sobrevivencia_parcelamento(carteira_id: int) -> list[float]:
+    """% de parcelamentos ainda ativos por parcela (1ª a 12ª).
+
+    Aproximado a partir de cohorts_campanha: assume decay linear entre
+    100% (1ª parcela) e taxa_conclusao × 100 ao longo de parcelas_maximas.
+    Retorna lista de 12 floats (0–100).
+    """
+    sql = """
+        SELECT aderiram, concluiram, quebraram,
+               COALESCE(parcelas_maximas, 12) AS parcelas
+        FROM vega.cohorts_campanha
+        WHERE carteira_id = %(carteira_id)s
+          AND aderiram > 0
+    """
+    with get_conn() as conn:
+        df = pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+    if df.empty:
+        return []
+    total_aderiram   = int(df["aderiram"].sum())
+    total_concluiram = int(df["concluiram"].sum())
+    avg_parcelas     = max(int(df["parcelas"].mean()), 1)
+    taxa_conclusao   = total_concluiram / total_aderiram if total_aderiram > 0 else 0
+    resultado = []
+    for i in range(1, 13):
+        if i <= avg_parcelas:
+            pct = 100.0 - (100.0 - taxa_conclusao * 100) * (i / avg_parcelas)
+        else:
+            pct = taxa_conclusao * 100
+        resultado.append(round(max(pct, 0.0), 1))
+    return resultado
+
+
+def programas_historico(carteira_id: int) -> pd.DataFrame:
+    """Histórico de programas de parcelamento.
+
+    Retorna: nome_programa, aderiram, concluiram, quebraram, taxa_conclusao.
+    """
+    sql = """
+        SELECT
+            nome_programa,
+            aderiram,
+            concluiram,
+            quebraram,
+            ROUND(100.0 * concluiram / NULLIF(aderiram, 0), 1) AS taxa_conclusao
+        FROM vega.cohorts_campanha
+        WHERE carteira_id = %(carteira_id)s
+        ORDER BY data_inicio DESC
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})
+
+
+def concentracao_geografica(carteira_id: int, limit: int = 10) -> pd.DataFrame:
+    """Top bairros por valor ativo.
+
+    Retorna: bairro, contribuintes, valor_cents, pct_total.
+    """
+    sql = """
+        WITH total AS (
+            SELECT SUM(h.valor_corrigido_cents) AS total_cents
+            FROM vega.cdas_higienizadas h
+            WHERE h.carteira_id = %(carteira_id)s
+              AND h.ativa = TRUE
+        )
+        SELECT
+            COALESCE(b.bairro, 'Não informado')      AS bairro,
+            COUNT(DISTINCT b.contribuinte_id)         AS contribuintes,
+            SUM(h.valor_corrigido_cents)              AS valor_cents,
+            ROUND(
+                100.0 * SUM(h.valor_corrigido_cents)
+                / NULLIF(t.total_cents, 0),
+                1
+            )                                         AS pct_total
+        FROM vega.cdas_higienizadas h
+        JOIN vega.cdas_brutas b ON b.id = h.cda_bruta_id
+        CROSS JOIN total t
+        WHERE h.carteira_id = %(carteira_id)s
+          AND h.ativa = TRUE
+        GROUP BY b.bairro, t.total_cents
+        ORDER BY valor_cents DESC
+        LIMIT %(limit)s
+    """
+    with get_conn() as conn:
+        return pd.read_sql(
+            sql, conn, params={"carteira_id": carteira_id, "limit": limit}
+        )
+
+
+def cohort_campanha(carteira_id: int) -> pd.DataFrame:
+    """Todos os cohorts de campanha de uma carteira.
+
+    Retorna campos relevantes de vega.cohorts_campanha.
+    """
+    sql = """
+        SELECT
+            nome_programa,
+            tipo_programa,
+            data_inicio,
+            data_encerramento,
+            condicoes_desconto_pct,
+            parcelas_maximas,
+            aderiram,
+            concluiram,
+            quebraram,
+            voltaram_carteira,
+            reabordados_sucesso,
+            perfil_dominante,
+            observacoes
+        FROM vega.cohorts_campanha
+        WHERE carteira_id = %(carteira_id)s
+        ORDER BY data_inicio DESC
+    """
+    with get_conn() as conn:
+        return pd.read_sql(sql, conn, params={"carteira_id": carteira_id})

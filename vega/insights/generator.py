@@ -74,3 +74,31 @@ Dados:
 {metricas}
 """
     return _completar(prompt)
+
+
+def gerar_insights_contactabilidade(metricas: dict) -> str:
+    """Insights cruzados da Aba 5 — Contactabilidade."""
+    prompt = f"""
+Analise os dados de contactabilidade da carteira abaixo e gere 4 insights acionáveis.
+Foque em: percentual de incontactáveis e seu valor em risco, lacunas de cobertura por canal,
+oportunidades de enriquecimento de dados e segmentos prioritários para campanha digital.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)
+
+
+def gerar_insights_historico(metricas: dict) -> str:
+    """Insights cruzados da Aba 6 — Histórico de Parcelamento."""
+    prompt = f"""
+Analise os dados históricos de parcelamento da carteira abaixo e gere 4 insights acionáveis.
+Foque em: taxa de reincidência e seu impacto no valor da carteira, padrão de quebra de parcelamento,
+programas com melhor e pior desempenho e oportunidades de reabordagem de devedores que quebraram.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)
