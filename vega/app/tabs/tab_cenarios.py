@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
 from vega.pipeline.simulacao import (
     calcular_elasticidade,
     calcular_payback,
@@ -324,10 +325,13 @@ def _aviso_decay(visible: bool) -> html.Div:
     return html.Div([
         html.Div("⚠", style={"fontSize": 20, "marginRight": 12, "alignSelf": "center"}),
         html.Div([
-            html.Div(
-                "Curvas de decay usam parâmetros de referência de mercado.",
-                style={"fontWeight": 600, "fontSize": 13},
-            ),
+            html.Div([
+                html.Div(
+                    "Curvas de decay usam parâmetros de referência de mercado.",
+                    style={"fontWeight": 600, "fontSize": 13},
+                ),
+                tooltip("T-07-02"),
+            ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(
                 "Para calibração use o Decay de recuperação por safra (Aba 4).",
                 style={"fontSize": 11, "color": GRAY},
@@ -382,6 +386,14 @@ def _tabela_cenarios(base: dict, res: dict) -> html.Div:
     n_agr    = n_mod + base["Q3"]["count_contrib"]
 
     return html.Div([
+        html.Div([
+            html.Div([
+                html.Div("Projeção de cenários", style={"fontSize": 13, "fontWeight": 600}),
+                tooltip("T-07-01"),
+            ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
+            html.Div("Conservador (Q1) · Moderado (Q1+Q2) · Agressivo (Q1+Q2+Q3)",
+                     style={"fontSize": 10, "color": GRAY}),
+        ], style={"marginBottom": 12}),
         html.Table([
             html.Thead(html.Tr([
                 html.Th("Métrica",      style={**_th, "textAlign": "left"}),
@@ -474,10 +486,13 @@ def _tabela_cenarios(base: dict, res: dict) -> html.Div:
     ], style=_CARD)
 
 
-def _chart_card(title: str, subtitle: str, figure_or_graph: Any) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure_or_graph: Any, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title, style={"fontSize": 13, "fontWeight": 600}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
         figure_or_graph,
@@ -565,6 +580,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                     figure=_fig_recuperacao_cumulativa(res),
                     config={"displayModeBar": False},
                 ),
+                tip_id="T-07-04",
             ),
 
             # 4. Chart: ROI por cenário
@@ -576,6 +592,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                     figure=_fig_roi(res),
                     config={"displayModeBar": False},
                 ),
+                tip_id="T-07-05",
             ),
 
             # 5. Chart: Elasticidade de desconto (duplo eixo Y)
@@ -587,6 +604,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                     figure=_fig_elasticidade(res["val_mod"], _DEFAULT_ADESAO["mod"]),
                     config={"displayModeBar": False},
                 ),
+                tip_id="T-07-06",
             ),
         ]),
 

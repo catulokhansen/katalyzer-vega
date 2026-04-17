@@ -378,9 +378,9 @@ def _kpis_principais(m: dict[str, Any]) -> html.Div:
         _metric("Estoque morto",        _fmt_reais(m["valor_morto_cents"]),
                 f"↓ {pct_morto:.1f}% eliminado", RED, "neg", tip_id="T-01-02"),
         _metric("Carteira ativa",       _fmt_reais(m["valor_ativo_cents"]),
-                f"↑ {_fmt_num(m['total_ativas'])} CDAs", GREEN, "pos"),
+                f"↑ {_fmt_num(m['total_ativas'])} CDAs", GREEN, "pos", tip_id="T-01-03"),
         _metric("Recuperável estimado", _fmt_reais(recuperavel_cents),
-                "ROI projetado 4,1:1", VIOLET, "pos"),
+                "ROI projetado 4,1:1", VIOLET, "pos", tip_id="T-01-04"),
     ], style={"display": "flex", "gap": 12, "marginBottom": 12})
 
 
@@ -414,11 +414,14 @@ def _chart_row(left: html.Div, right: html.Div) -> html.Div:
     return html.Div([left, right], style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": 12, "marginBottom": 12})
 
 
-def _chart_card(title: str, subtitle: str, figure: Any) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure: Any, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600, "color": "#1A1A1A"})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
             html.Div([
-                html.Div(title, style={"fontSize": 13, "fontWeight": 600, "color": "#1A1A1A"}),
+                html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div(subtitle, style={"fontSize": 10, "color": "#9CA3AF"}),
             ])
         ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between", "marginBottom": 12}),
@@ -508,7 +511,10 @@ def _tabela_top_contribuintes(df: pd.DataFrame, conc: dict | None) -> html.Div:
         risk_alert = html.Div([
             html.Span("⚠", style={"fontSize": 18, "flexShrink": 0}),
             html.Div([
-                html.Div("Risco de concentração detectado", style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
+                html.Div([
+                    html.Div("Risco de concentração detectado", style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
+                    tooltip("T-01-10"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div([
                     f"{conc['contribuinte_nome']} representa ",
                     html.Strong(f"{conc['pct_carteira_ativa']:.1f}% da carteira ativa"),
@@ -535,7 +541,10 @@ def _tabela_top_contribuintes(df: pd.DataFrame, conc: dict | None) -> html.Div:
     return html.Div([
         html.Div([
             html.Div([
-                html.Div("Top contribuintes por valor", style={"fontSize": 13, "fontWeight": 600}),
+                html.Div([
+                    html.Div("Top contribuintes por valor", style={"fontSize": 13, "fontWeight": 600}),
+                    tooltip("T-01-09"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div("Carteira ativa · visão consolidada", style={"fontSize": 10, "color": "#9CA3AF"}),
             ]),
         ], style={"display": "flex", "justifyContent": "space-between", "marginBottom": 12}),
@@ -611,6 +620,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                 "Composição por tributo",
                 f"Carteira ativa · {_fmt_reais(metricas['valor_ativo_cents'])}",
                 _fig_tributo(df_tributo),
+                tip_id="T-01-05",
             ),
             html.Div([
                 html.Div([
@@ -641,11 +651,13 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                 "Concentração Pareto",
                 "Top 10% = 65% do valor",
                 _fig_pareto(df_pareto),
+                tip_id="T-01-07",
             ),
             _chart_card(
                 "Valor × idade por tributo",
                 "Empilhado por faixa etária",
                 _fig_valor_idade(df_idade),
+                tip_id="T-01-08",
             ),
         ),
 
@@ -673,7 +685,10 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
         # 12. Chart de fluxo
         html.Div([
             html.Div([
-                html.Div("Fluxo de entrada vs recuperação", style={"fontSize": 13, "fontWeight": 600}),
+                html.Div([
+                    html.Div("Fluxo de entrada vs recuperação", style={"fontSize": 13, "fontWeight": 600}),
+                    tooltip("T-01-11"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div("CDAs inscritas × recuperadas · últimos 12 meses", style={"fontSize": 10, "color": "#9CA3AF"}),
             ], style={"marginBottom": 12}),
             dcc.Graph(figure=_fig_fluxo(df_fluxo), config={"displayModeBar": False}, style={"height": 200}),

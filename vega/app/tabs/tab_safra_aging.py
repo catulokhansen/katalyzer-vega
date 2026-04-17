@@ -17,6 +17,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta ────────────────────────────────────────────────────────────────────
 DELFT  = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -143,9 +145,15 @@ def _real_metricas(carteira_id: int) -> dict:
 
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 
-def _kpi_card(label: str, value: str, sub: str = "") -> html.Div:
+def _kpi_card(label: str, value: str, sub: str = "", tip_id: str | None = None) -> html.Div:
+    label_node: Any = html.Div(label, style=_LABEL_STYLE)
+    if tip_id:
+        label_node = html.Div([
+            html.Div(label, style=_LABEL_STYLE),
+            tooltip(tip_id),
+        ], style={"display": "flex", "alignItems": "center", "gap": "6px"})
     children = [
-        html.Div(label, style=_LABEL_STYLE),
+        label_node,
         html.Div(value, style={"fontSize": 22, "fontWeight": 700, "color": DELFT}),
     ]
     if sub:
@@ -157,7 +165,10 @@ def _kpi_card(label: str, value: str, sub: str = "") -> html.Div:
 
 def _kpi_prescricao(bruta_cents: int, liquida_cents: int) -> html.Div:
     return html.Div([
-        html.Div("Prescrição (12m)", style=_LABEL_STYLE),
+        html.Div([
+            html.Div("Prescrição (12m)", style=_LABEL_STYLE),
+            tooltip("T-04-03"),
+        ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
         html.Div([
             html.Div([
                 html.Div("Bruta", style={"fontSize": 10, "color": GRAY}),
@@ -187,13 +198,14 @@ def _kpi_prescricao(bruta_cents: int, liquida_cents: int) -> html.Div:
 
 def _row_kpis(m: dict) -> html.Div:
     return html.Div([
-        _kpi_card("Safras analisadas", str(m["safras_analisadas"]), "anos distintos"),
-        _kpi_card("Melhor safra", str(m["melhor_safra"]), "maior taxa de recuperação"),
+        _kpi_card("Safras analisadas", str(m["safras_analisadas"]), "anos distintos", tip_id="T-04-01"),
+        _kpi_card("Melhor safra", str(m["melhor_safra"]), "maior taxa de recuperação", tip_id="T-04-02"),
         _kpi_prescricao(m["prescricao_bruta_cents"], m["prescricao_liquida_cents"]),
         _kpi_card(
             "Idade média ponderada",
             f"{m['idade_media_ponderada']:.1f} anos",
             f"mediana: {m['mediana_idade']:.1f} anos",
+            tip_id="T-04-04",
         ),
     ], style={
         "display": "grid",
@@ -360,10 +372,13 @@ def _fig_sazonalidade(df: pd.DataFrame) -> go.Figure:
 
 # ── Componentes auxiliares ────────────────────────────────────────────────────
 
-def _chart_card(title: str, subtitle: str, figure: go.Figure) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure: go.Figure, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title, style={"fontSize": 13, "fontWeight": 600}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
         dcc.Graph(figure=figure, config={"displayModeBar": False}),
@@ -448,6 +463,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Análise de Safra / Vintage",
             "Valor inscrito por safra (barras) × taxa de recuperação histórica (linha)",
             _fig_vintage(df_vintage),
+            tip_id="T-04-05",
         ),
 
         # 3. Curva de aging
@@ -455,12 +471,16 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Curva de Aging",
             "Valor ativo por faixa etária · normal (sólido) × prescrição interrompida (hachurado)",
             _fig_aging(df_aging),
+            tip_id="T-04-06",
         ),
 
         # 4. Decay de recuperação
         html.Div([
             html.Div([
-                html.Div("Decay de Recuperação por Safra", style={"fontSize": 13, "fontWeight": 600}),
+                html.Div([
+                    html.Div("Decay de Recuperação por Safra", style={"fontSize": 13, "fontWeight": 600}),
+                    tooltip("T-04-07"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div(
                     "Taxa acumulada de recuperação (%) × meses desde inscrição",
                     style={"fontSize": 10, "color": GRAY},
@@ -477,6 +497,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Sazonalidade",
             "Média de CDAs inscritas e recuperadas por mês do ano",
             _fig_sazonalidade(df_sazon),
+            tip_id="T-04-08",
         ),
 
         # 6. Botão de insights

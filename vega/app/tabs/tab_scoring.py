@@ -16,6 +16,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta ────────────────────────────────────────────────────────────────────
 DELFT  = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -221,8 +223,11 @@ def _render_q1_alert(df_q: pd.DataFrame) -> html.Div:
         return html.Div([
             html.Span("⚠", style={"fontSize": 18, "flexShrink": 0}),
             html.Div([
-                html.Div("Nenhuma CDA atinge os thresholds de Q1",
-                         style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
+                html.Div([
+                    html.Div("Nenhuma CDA atinge os thresholds de Q1",
+                             style={"fontSize": 12, "fontWeight": 600, "color": "#92400E", "marginBottom": 4}),
+                    tooltip("T-03-02"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div(
                     "Os thresholds configurados são exigentes demais para esta carteira. "
                     "Considere reduzir os valores de prioridade e/ou recuperabilidade na sidebar.",
@@ -306,7 +311,10 @@ def _render_matriz(df_q: pd.DataFrame, thr_pri: int, thr_rec: int) -> html.Div:
 
     return html.Div([
         html.Div([
-            html.Div("Matriz de quadrantes", style={"fontSize": 13, "fontWeight": 600}),
+            html.Div([
+                html.Div("Matriz de quadrantes", style={"fontSize": 13, "fontWeight": 600}),
+                tooltip("T-03-01"),
+            ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
 
@@ -435,7 +443,10 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
         html.Div([
             html.Div([
                 html.Div([
-                    html.Div("Score Prioridade", style={"fontSize": 13, "fontWeight": 600}),
+                    html.Div([
+                        html.Div("Score Prioridade", style={"fontSize": 13, "fontWeight": 600}),
+                        tooltip("T-03-04"),
+                    ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                     html.Div("Distribuição 0–60 · 12 bins de 5 pts", style={"fontSize": 10, "color": GRAY}),
                 ], style={"marginBottom": 12}),
                 dcc.Graph(
@@ -445,7 +456,10 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             ], style=_CARD),
             html.Div([
                 html.Div([
-                    html.Div("Score Recuperabilidade", style={"fontSize": 13, "fontWeight": 600}),
+                    html.Div([
+                        html.Div("Score Recuperabilidade", style={"fontSize": 13, "fontWeight": 600}),
+                        tooltip("T-03-05"),
+                    ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                     html.Div("Distribuição 0–50 · 10 bins de 5 pts", style={"fontSize": 10, "color": GRAY}),
                 ], style={"marginBottom": 12}),
                 dcc.Graph(

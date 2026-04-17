@@ -13,6 +13,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta ────────────────────────────────────────────────────────────────────
 DELFT  = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -121,9 +123,15 @@ def _real_metricas(carteira_id: int) -> dict:
 
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 
-def _kpi_card(label: str, value: str, sub: str = "", color: str = DELFT) -> html.Div:
+def _kpi_card(label: str, value: str, sub: str = "", color: str = DELFT, tip_id: str | None = None) -> html.Div:
+    label_node: Any = html.Div(label, style=_LABEL_STYLE)
+    if tip_id:
+        label_node = html.Div([
+            html.Div(label, style=_LABEL_STYLE),
+            tooltip(tip_id),
+        ], style={"display": "flex", "alignItems": "center", "gap": "6px"})
     children = [
-        html.Div(label, style=_LABEL_STYLE),
+        label_node,
         html.Div(value, style={"fontSize": 22, "fontWeight": 700, "color": color}),
     ]
     if sub:
@@ -138,24 +146,28 @@ def _row_kpis(m: dict) -> html.Div:
             f"{m['pct_contactaveis']:.1f}%",
             "celular, WhatsApp, e-mail ou telefone",
             GREEN,
+            tip_id="T-05-01",
         ),
         _kpi_card(
             "Só endereço",
             f"{m['pct_so_endereco']:.1f}%",
             "sem contato digital",
             AMBER,
+            tip_id="T-05-02",
         ),
         _kpi_card(
             "Incontactáveis",
             f"{m['pct_incontactaveis']:.1f}%",
             "sem qualquer dado de contato",
             RED,
+            tip_id="T-05-03",
         ),
         _kpi_card(
             "Valor incontactável",
             _fmt_reais(m["valor_incontactavel_cents"]),
             "em risco de não recuperação",
             RED,
+            tip_id="T-05-04",
         ),
     ], style={
         "display": "grid",
@@ -324,10 +336,13 @@ def _heatmap_tabela(df: pd.DataFrame) -> html.Div:
 
 # ── Componentes auxiliares ────────────────────────────────────────────────────
 
-def _chart_card(title: str, subtitle: str, figure: go.Figure) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure: go.Figure, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title, style={"fontSize": 13, "fontWeight": 600}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
         dcc.Graph(figure=figure, config={"displayModeBar": False}),
@@ -385,6 +400,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Cobertura por Canal",
             "% de CDAs ativas com cada canal de contacto preenchido",
             _fig_cobertura_canal(df_cobertura),
+            tip_id="T-05-05",
         ),
 
         # 3. Contactabilidade × faixa de valor
@@ -392,13 +408,17 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Contactabilidade por Faixa de Valor",
             "Valor ativo (R$) por faixa × nível de contacto",
             _fig_contato_faixa(df_faixa),
+            tip_id="T-05-06",
         ),
 
         # 4. Heatmap qualidade de dados
         html.Div([
             html.Div([
-                html.Div("Qualidade de Dados por Canal e Tributo",
-                         style={"fontSize": 13, "fontWeight": 600}),
+                html.Div([
+                    html.Div("Qualidade de Dados por Canal e Tributo",
+                             style={"fontSize": 13, "fontWeight": 600}),
+                    tooltip("T-05-07"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div("% de CDAs com canal preenchido · verde ≥50% · âmbar 30–49% · vermelho <30%",
                          style={"fontSize": 10, "color": GRAY}),
             ], style={"marginBottom": 12}),

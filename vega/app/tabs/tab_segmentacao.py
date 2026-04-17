@@ -13,6 +13,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta (idêntica à Aba 1) ─────────────────────────────────────────────────
 DELFT  = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -158,10 +160,13 @@ def _fig_pf_vs_pj(df: pd.DataFrame) -> go.Figure:
 
 # ── Componentes de layout ─────────────────────────────────────────────────────
 
-def _chart_card(title: str, subtitle: str, figure: Any) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure: Any, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600, "color": "#1A1A1A"})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title,    style={"fontSize": 13, "fontWeight": 600, "color": "#1A1A1A"}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": "#9CA3AF"}),
         ], style={"marginBottom": 12}),
         dcc.Graph(figure=figure, config={"displayModeBar": False}),
@@ -250,7 +255,10 @@ def _tabela_matriz(df: pd.DataFrame) -> html.Div:
 
     return html.Div([
         html.Div([
-            html.Div("Matriz de segmentos", style={"fontSize": 13, "fontWeight": 600}),
+            html.Div([
+                html.Div("Matriz de segmentos", style={"fontSize": 13, "fontWeight": 600}),
+                tooltip("T-02-03"),
+            ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div("Tributo × faixa de valor — CDAs ativas", style={"fontSize": 10, "color": "#9CA3AF"}),
         ], style={"marginBottom": 12}),
         html.Div(
@@ -310,11 +318,13 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
                 "Distribuição por faixa de valor",
                 f"CDAs ativas · {_fmt_num(int(df_faixa['count_cdas'].sum()))} total",
                 _fig_faixa_valor(df_faixa),
+                tip_id="T-02-01",
             ),
             _chart_card(
                 "Pessoa Física vs Pessoa Jurídica",
                 "CDAs ativas por tipo de contribuinte",
                 _fig_pf_vs_pj(df_pfpj),
+                tip_id="T-02-02",
             ),
         ], style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": 12, "marginBottom": 12}),
 

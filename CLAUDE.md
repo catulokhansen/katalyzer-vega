@@ -383,3 +383,25 @@ Todos em Project Knowledge do Claude:
 | `Pipeline_KatalyzerVega_v1.docx` | Ingestão CSV, higienização, segmentação, scoring v1, testes |
 | `PRD_KatalyzerVega_v1.docx` | Especificação funcional das 7 abas — KPIs, charts, queries |
 | `katalyzer-diagnostico-workbench-v4.html` | Fonte de verdade visual — referência de layout e UX |
+| `Catalogo_Tooltips_KatalyzerVega_v1.docx` | Fonte de verdade dos 49 tooltips — textos, campos, IDs |
+
+---
+
+## Tooltips contextuais
+
+Todos os componentes do dashboard têm tooltip contextual com icone (i) ao lado do titulo. O conteudo e carregado de `vega/app/components/tooltips_content.py` (dicionario `TOOLTIPS`, 49 entradas indexadas por id).
+
+**Para adicionar novo tooltip:**
+1. Adicionar entrada em `TOOLTIPS` com id seguindo o padrao `T-AB-NN`
+2. Atualizar `Catalogo_Tooltips_KatalyzerVega_v1.docx` (fonte de verdade)
+3. Aplicar `tooltip("T-AB-NN")` no componente correspondente
+
+**Para modificar texto de tooltip existente:**
+1. Atualizar `Catalogo_Tooltips_KatalyzerVega_v1.docx` primeiro
+2. Sincronizar `tooltips_content.py`
+3. Reiniciar app — nao ha build step intermediario
+
+**Restricoes obrigatorias:**
+- Nenhum caractere tipografico nos textos: aspas curvas (`"` `"` `'` `'`), travessao (`--`), meia-risca (`-`)
+- `como_interpretar` deve ser `list[str]` (nunca `str`)
+- IDs seguem regex `T-\d{2}-\d{2}` — T-01 a T-07 mapeiam para Abas 1 a 7

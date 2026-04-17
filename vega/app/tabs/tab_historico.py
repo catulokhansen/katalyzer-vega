@@ -13,6 +13,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
+from vega.app.components.tooltip import tooltip
+
 # ── Paleta ────────────────────────────────────────────────────────────────────
 DELFT  = "#0A2A5F"
 VIOLET = "#7B2CBF"
@@ -137,9 +139,15 @@ def _real_metricas(carteira_id: int) -> dict:
 
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 
-def _kpi_card(label: str, value: str, sub: str = "", color: str = DELFT) -> html.Div:
+def _kpi_card(label: str, value: str, sub: str = "", color: str = DELFT, tip_id: str | None = None) -> html.Div:
+    label_node: Any = html.Div(label, style=_LABEL_STYLE)
+    if tip_id:
+        label_node = html.Div([
+            html.Div(label, style=_LABEL_STYLE),
+            tooltip(tip_id),
+        ], style={"display": "flex", "alignItems": "center", "gap": "6px"})
     children = [
-        html.Div(label, style=_LABEL_STYLE),
+        label_node,
         html.Div(value, style={"fontSize": 22, "fontWeight": 700, "color": color}),
     ]
     if sub:
@@ -154,22 +162,26 @@ def _row_kpis(m: dict) -> html.Div:
             f"{m['pct_reincidentes']:.1f}%",
             "CDAs com parcelamento anterior",
             RED,
+            tip_id="T-06-01",
         ),
         _kpi_card(
             "Valor reincidentes",
             _fmt_reais(m["valor_reincidentes_cents"]),
             "valor ativo em reincidentes",
+            tip_id="T-06-02",
         ),
         _kpi_card(
             "Taxa de quebra (média)",
             f"{m['taxa_quebra_media']:.1f}%",
             "parcelamentos encerrados por inadimplência",
             AMBER,
+            tip_id="T-06-03",
         ),
         _kpi_card(
             "Parcela média de quebra",
             f"{m['parcela_media_quebra']:.1f}ª",
             "parcela onde ocorre a quebra",
+            tip_id="T-06-04",
         ),
     ], style={
         "display": "grid",
@@ -394,20 +406,26 @@ def _tabela_cohorts(df: pd.DataFrame) -> html.Div:
 
 # ── Componentes auxiliares ────────────────────────────────────────────────────
 
-def _chart_card(title: str, subtitle: str, figure: go.Figure) -> html.Div:
+def _chart_card(title: str, subtitle: str, figure: go.Figure, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title, style={"fontSize": 13, "fontWeight": 600}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
         dcc.Graph(figure=figure, config={"displayModeBar": False}),
     ], style=_CARD)
 
 
-def _table_card(title: str, subtitle: str, table: html.Div) -> html.Div:
+def _table_card(title: str, subtitle: str, table: html.Div, tip_id: str | None = None) -> html.Div:
+    title_row: list = [html.Div(title, style={"fontSize": 13, "fontWeight": 600})]
+    if tip_id:
+        title_row.append(tooltip(tip_id))
     return html.Div([
         html.Div([
-            html.Div(title, style={"fontSize": 13, "fontWeight": 600}),
+            html.Div(title_row, style={"display": "flex", "alignItems": "center", "gap": "6px"}),
             html.Div(subtitle, style={"fontSize": 10, "color": GRAY}),
         ], style={"marginBottom": 12}),
         table,
@@ -469,13 +487,17 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Reincidência vs Primeiro Débito",
             "Valor ativo por tipo de comportamento histórico do devedor",
             _fig_reincidencia(df_reincid),
+            tip_id="T-06-05",
         ),
 
         # 3. Curva de sobrevivência
         html.Div([
             html.Div([
-                html.Div("Curva de Sobrevivência do Parcelamento",
-                         style={"fontSize": 13, "fontWeight": 600}),
+                html.Div([
+                    html.Div("Curva de Sobrevivência do Parcelamento",
+                             style={"fontSize": 13, "fontWeight": 600}),
+                    tooltip("T-06-06"),
+                ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
                 html.Div(
                     "% de parcelamentos ainda ativos por parcela · estimado de cohorts_campanha",
                     style={"fontSize": 10, "color": GRAY},
@@ -495,6 +517,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Histórico de Parcelamento por Programa",
             "Taxa de conclusão: verde ≥60% · âmbar 46–59% · vermelho <45%",
             _tabela_programas(df_programas),
+            tip_id="T-06-07",
         ),
 
         # 5. Tabela: concentração geográfica
@@ -502,6 +525,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Concentração Geográfica por Bairro",
             "Top 10 bairros por valor ativo",
             _tabela_concentracao(df_concentracao),
+            tip_id="T-06-08",
         ),
 
         # 6. Tabela: comportamento pós-campanha por cohort
@@ -509,6 +533,7 @@ def get_layout(carteira_id: int | None = None, sessao_id: int | None = None) -> 
             "Comportamento Pós-Campanha por Cohort",
             "Histórico de adesão, conclusão, quebra e reabordagem por programa",
             _tabela_cohorts(df_cohorts),
+            tip_id="T-06-09",
         ),
 
         # 7. Botão de insights
