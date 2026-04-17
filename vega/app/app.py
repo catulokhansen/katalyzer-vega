@@ -24,6 +24,7 @@ from vega.app.tabs import (
     tab_safra_aging,
     tab_contactabilidade,
     tab_historico,
+    tab_cenarios,
 )
 
 
@@ -122,6 +123,8 @@ def create_app() -> Dash:
             return tab_contactabilidade.get_layout(carteira_id, sessao_id)
         if tab == "historico":
             return tab_historico.get_layout(carteira_id, sessao_id)
+        if tab == "cenarios":
+            return tab_cenarios.get_layout(carteira_id, sessao_id)
         return html.Div(
             "Aba em construção.",
             style={"color": "#9ca3af", "padding": 24, "fontSize": 13},
@@ -134,6 +137,7 @@ def create_app() -> Dash:
     tab_safra_aging.registrar_callbacks(app)
     tab_contactabilidade.registrar_callbacks(app)
     tab_historico.registrar_callbacks(app)
+    tab_cenarios.registrar_callbacks(app)
 
     return app
 

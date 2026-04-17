@@ -102,3 +102,18 @@ Dados:
 {metricas}
 """
     return _completar(prompt)
+
+
+def gerar_insights_cenarios(metricas: dict) -> str:
+    """Insights cruzados da Aba 7 — Cenários de Recuperação."""
+    prompt = f"""
+Analise os cenários de recuperação abaixo e gere 4 insights acionáveis.
+Foque em: diferença de ROI entre cenários, payback do moderado vs agressivo,
+ponto ótimo de desconto pela curva de elasticidade e recomendação de abordagem
+considerando o perfil de risco da carteira.
+Cada insight: título curto + descrição com números reais + ação recomendada.
+
+Dados:
+{metricas}
+"""
+    return _completar(prompt)

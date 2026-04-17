@@ -987,6 +987,36 @@ def concentracao_geografica(carteira_id: int, limit: int = 10) -> pd.DataFrame:
         )
 
 
+# ── Aba 7 — Cenários ──────────────────────────────────────────────────────────
+
+def base_cenarios(carteira_id: int, sessao_id: int) -> pd.DataFrame:
+    """Base para os 3 cenários da Aba 7: Q1/Q2/Q3 por valor e contribuintes.
+
+    Usa o campo quadrante já gravado em vega.scores (calculado no scoring).
+    Retorna: quadrante, count_contrib, valor_cents (apenas Q1, Q2, Q3).
+    Q4 é excluído — não faz parte de nenhum cenário de ação.
+    """
+    sql = """
+        SELECT
+            s.quadrante,
+            COUNT(DISTINCT b.contribuinte_id)   AS count_contrib,
+            SUM(h.valor_corrigido_cents)         AS valor_cents
+        FROM vega.scores s
+        JOIN vega.cdas_higienizadas h ON h.id = s.cda_higienizada_id
+        JOIN vega.cdas_brutas b       ON b.id = h.cda_bruta_id
+        WHERE s.carteira_id = %(carteira_id)s
+          AND s.sessao_id   = %(sessao_id)s
+          AND s.quadrante   IN ('Q1', 'Q2', 'Q3')
+        GROUP BY s.quadrante
+        ORDER BY s.quadrante
+    """
+    with get_conn() as conn:
+        return pd.read_sql(
+            sql, conn,
+            params={"carteira_id": carteira_id, "sessao_id": sessao_id},
+        )
+
+
 def cohort_campanha(carteira_id: int) -> pd.DataFrame:
     """Todos os cohorts de campanha de uma carteira.
 
